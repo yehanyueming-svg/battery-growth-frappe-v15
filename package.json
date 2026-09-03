@@ -1,0 +1,11 @@
+{
+  "private": true,
+  "scripts": {
+    "format:check": "prettier --check \"battery_growth/**/*.{js,css,json}\"",
+    "lint": "eslint \"battery_growth/**/*.js\""
+  },
+  "devDependencies": {
+    "eslint": "8.57.1",
+    "prettier": "3.3.3"
+  }
+}
