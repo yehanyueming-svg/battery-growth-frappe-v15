@@ -109,7 +109,7 @@ def _read_response_body(response) -> bytes:
 def _extract_content(response) -> dict:
 	try:
 		body = json.loads(_read_response_body(response).decode("utf-8"))
-	except (UnicodeDecodeError, json.JSONDecodeError):
+	except (UnicodeDecodeError, ValueError):
 		raise InsightProviderError("Invalid provider response") from None
 	if not isinstance(body, dict):
 		raise InsightProviderError("Invalid provider response")
@@ -122,7 +122,7 @@ def _extract_content(response) -> dict:
 			raise InsightProviderError("Provider response too large")
 		try:
 			content = json.loads(content)
-		except json.JSONDecodeError:
+		except ValueError:
 			raise InsightProviderError("Invalid provider response") from None
 	return _validate_payload(content)
 
@@ -135,6 +135,7 @@ def request_insights(context: dict, settings) -> dict:
 	api_key = settings.get_password("api_key", raise_exception=False)
 	if not isinstance(api_key, str) or not api_key:
 		raise InsightProviderError("Provider API key is not configured")
+	response = None
 	try:
 		response = requests.post(
 			f"{base_url}/chat/completions",
@@ -151,9 +152,14 @@ def request_insights(context: dict, settings) -> dict:
 			stream=True,
 		)
 		response.raise_for_status()
+		return _extract_content(response)
+	except InsightProviderError:
+		raise
 	except requests.RequestException:
 		raise InsightProviderError("Provider request failed") from None
-	try:
-		return _extract_content(response)
 	finally:
-		response.close()
+		if response is not None:
+			try:
+				response.close()
+			except Exception:
+				pass

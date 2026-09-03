@@ -6,7 +6,7 @@ import json
 import sys
 import types
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import requests
 
@@ -56,7 +56,8 @@ def _load_insights_without_frappe():
 	frappe.cache = lambda: cache
 	frappe.get_single = lambda _doctype: None
 	frappe.log_error = lambda *_args, **_kwargs: None
-	frappe.throw = lambda message: (_ for _ in ()).throw(ValueError(message))
+	frappe.ValidationError = type("ValidationError", (Exception,), {})
+	frappe.throw = lambda message: (_ for _ in ()).throw(frappe.ValidationError(message))
 	utils = types.ModuleType("frappe.utils")
 	utils.getdate = lambda value: (
 		value if isinstance(value, datetime.date) else datetime.date.fromisoformat(str(value))
@@ -163,6 +164,7 @@ class _Response:
 		self.status_code = status_code
 		self.headers = {"Content-Length": str(len(json.dumps(payload)))}
 		self.content = json.dumps(payload).encode()
+		self.closed = False
 
 	def raise_for_status(self):
 		if self.status_code >= 400:
@@ -176,7 +178,7 @@ class _Response:
 			yield self.content[start:start + chunk_size]
 
 	def close(self):
-		pass
+		self.closed = True
 
 
 class TestRulesAndSanitization(FrappeTestCase):
@@ -250,6 +252,20 @@ class TestOpenAICompatibleProvider(FrappeTestCase):
 		self.assertNotIn("super-secret", str(captured.exception))
 		self.assertNotIn("not-json", str(captured.exception))
 
+	def test_huge_integer_json_in_either_parse_layer_falls_back_to_rules(self):
+		huge_integer = "1" * 5_000
+		for layer in ("outer", "content"):
+			with self.subTest(layer=layer):
+				if layer == "outer":
+					response = _Response({})
+					response.content = f'{{"value":{huge_integer}}}'.encode()
+				else:
+					response = _Response({"choices": [{"message": {"content": huge_integer}}]})
+				response.headers = {"Content-Length": str(len(response.content))}
+				with patch("battery_growth.integrations.openai_compatible.requests.post", return_value=response):
+					with self.assertRaises(provider.InsightProviderError):
+						provider.request_insights(insights.sanitize_metrics(metrics()), _Settings())
+
 	def test_provider_rejects_unsafe_urls_and_oversized_response(self):
 		for base_url in ("ftp://provider.example", "https://user:pass@provider.example", "https://provider.example/#fragment"):
 			with self.subTest(base_url=base_url), self.assertRaises(provider.InsightProviderError):
@@ -279,6 +295,16 @@ class TestOpenAICompatibleProvider(FrappeTestCase):
 	def test_malformed_ipv6_url_is_a_safe_provider_error(self):
 		with self.assertRaises(provider.InsightProviderError):
 			provider.request_insights(insights.sanitize_metrics(metrics()), _Settings(base_url="https://[invalid"))
+
+	def test_http_error_response_is_closed_even_when_close_raises(self):
+		response = _Response({}, status_code=500)
+		response.close = Mock(side_effect=RuntimeError("do not expose body"))
+		with patch("battery_growth.integrations.openai_compatible.requests.post", return_value=response):
+			with self.assertRaises(provider.InsightProviderError) as captured:
+				provider.request_insights(insights.sanitize_metrics(metrics()), _Settings(api_key="secret-key"))
+		self.assertNotIn("secret-key", str(captured.exception))
+		self.assertNotIn("do not expose body", str(captured.exception))
+		response.close.assert_called_once_with()
 
 
 class TestOperationsBrief(FrappeTestCase):
@@ -330,6 +356,16 @@ class TestOperationsBrief(FrappeTestCase):
 		self.assertGreater(len(result["insights"]), 0)
 
 	@patch("battery_growth.integrations.openai_compatible.requests.post")
+	def test_huge_integer_provider_json_falls_back_to_rules(self, post):
+		response = _Response({})
+		response.content = f'{{"value":{"1" * 5_000}}}'.encode()
+		response.headers = {"Content-Length": str(len(response.content))}
+		post.return_value = response
+		insights.frappe.get_single = lambda _doctype: _Settings(provider="OpenAI Compatible")
+		result = insights.get_operations_brief({"customer_type": "企业"}, force=True)
+		self.assertEqual(result["source"], "rules-fallback")
+
+	@patch("battery_growth.integrations.openai_compatible.requests.post")
 	def test_openai_mode_caches_canonical_sanitized_snapshot_and_force_bypasses_it(self, post):
 		post.return_value = _Response({"choices": [{"message": {"content": {"summary": "增长稳定", "insights": [{"level": "info", "title": "保持节奏", "evidence": "净增长 11 户", "action": "持续跟进"}]}}}]})
 		insights.frappe.get_single = lambda _doctype: _Settings(provider="OpenAI Compatible", cache_minutes=2)
@@ -350,7 +386,9 @@ class TestSettingsValidation(FrappeTestCase):
 			settings.timeout_seconds = timeout
 			settings.cache_minutes = cache_minutes
 			settings.provider = "本地规则"
-			with self.subTest(timeout=timeout, cache_minutes=cache_minutes), self.assertRaises(ValueError):
+			with self.subTest(timeout=timeout, cache_minutes=cache_minutes), self.assertRaises(
+				settings_controller.frappe.ValidationError
+			):
 				settings.validate()
 		settings.timeout_seconds = 15
 		settings.cache_minutes = 15
@@ -360,7 +398,7 @@ class TestSettingsValidation(FrappeTestCase):
 			settings.validate()
 		for base_url in ("ftp://provider.example", "https://user@provider.example", "https://provider.example/#x"):
 			settings.base_url = base_url
-			with self.subTest(base_url=base_url), self.assertRaises(ValueError):
+			with self.subTest(base_url=base_url), self.assertRaises(settings_controller.frappe.ValidationError):
 				settings.validate()
 
 
