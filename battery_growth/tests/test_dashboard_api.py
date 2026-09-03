@@ -6,6 +6,7 @@ import json
 import sys
 import types
 import unittest
+from unittest.mock import patch
 
 
 try:
@@ -45,10 +46,8 @@ def _load_dashboard_without_frappe():
 	frappe.log_error = lambda *_args, **_kwargs: None
 	frappe.whitelisted = set()
 	frappe.allowed_http_methods_for_whitelisted_func = {}
-	frappe.throw_calls = []
 
 	def throw(message, exc=None):
-		frappe.throw_calls.append((message, exc))
 		raise (exc or frappe.ValidationError)(message)
 
 	frappe.throw = throw
@@ -142,12 +141,11 @@ class TestDashboardAPI(FrappeTestCase):
 
 	def test_invalid_filters_are_actionable_frappe_validation_errors(self):
 		dashboard.normalize_filters = lambda _filters: (_ for _ in ()).throw(ValueError("开始日期不能晚于结束日期"))
-		with self.assertRaises(dashboard.frappe.ValidationError) as captured:
-			dashboard.get_dashboard_data({"from_date": "2026-02-01", "to_date": "2026-01-01"})
+		with patch.object(dashboard.frappe, "throw", wraps=dashboard.frappe.throw) as throw:
+			with self.assertRaises(dashboard.frappe.ValidationError) as captured:
+				dashboard.get_dashboard_data({"from_date": "2026-02-01", "to_date": "2026-01-01"})
 		self.assertIn("开始日期不能晚于结束日期", str(captured.exception))
-		self.assertIn(
-			("开始日期不能晚于结束日期", dashboard.frappe.ValidationError), dashboard.frappe.throw_calls
-		)
+		throw.assert_called_once_with("开始日期不能晚于结束日期", exc=dashboard.frappe.ValidationError)
 
 	def test_operations_brief_is_post_whitelisted_and_denies_before_service_work(self):
 		self.assertIn(dashboard.generate_operations_brief, dashboard.frappe.whitelisted)
