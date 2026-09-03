@@ -8,11 +8,21 @@ from datetime import date
 
 
 try:
+	import frappe as _frappe
 	from frappe.tests.utils import FrappeTestCase
 except ModuleNotFoundError as error:
 	if error.name != "frappe":
 		raise
+	_frappe = None
 	FrappeTestCase = unittest.TestCase
+
+
+_STUB_BOUND_MODULES = (
+	"battery_growth.analytics",
+	"battery_growth.analytics.filters",
+	"battery_growth.analytics.metrics",
+	"battery_growth.battery_growth.report.user_growth_analysis.user_growth_analysis",
+)
 
 
 def _load_report_without_frappe():
@@ -26,21 +36,33 @@ def _load_report_without_frappe():
 	frappe.utils = utils
 	stub_modules = {"frappe": frappe, "frappe.utils": utils}
 	missing = object()
-	original_modules = {name: sys.modules.get(name, missing) for name in stub_modules}
+	original_modules = {
+		name: sys.modules.get(name, missing) for name in (*stub_modules, *_STUB_BOUND_MODULES)
+	}
 	try:
 		sys.modules.update(stub_modules)
 		return importlib.import_module(
 			"battery_growth.battery_growth.report.user_growth_analysis.user_growth_analysis"
 		)
 	finally:
-		for name, original_module in original_modules.items():
+		for name in _STUB_BOUND_MODULES:
+			original_module = original_modules[name]
+			if original_module is missing:
+				sys.modules.pop(name, None)
+			else:
+				sys.modules[name] = original_module
+		for name in stub_modules:
+			original_module = original_modules[name]
 			if original_module is missing:
 				sys.modules.pop(name, None)
 			else:
 				sys.modules[name] = original_module
 
 
-report = _load_report_without_frappe()
+if _frappe is None:
+	report = _load_report_without_frappe()
+else:
+	from battery_growth.battery_growth.report.user_growth_analysis import user_growth_analysis as report
 
 
 class TestUserGrowthAnalysis(FrappeTestCase):
@@ -120,3 +142,21 @@ class TestUserGrowthAnalysis(FrappeTestCase):
 			{"name": "期末在服", "chartType": "line", "values": []},
 		]})
 		self.assertEqual([item["value"] for item in summary], [0, 0, 0, 0, 0.0])
+
+	@unittest.skipIf(_frappe is not None, "Only the no-Frappe fallback creates temporary modules.")
+	def test_no_frappe_loader_does_not_cache_modules_bound_to_stubs(self):
+		"""A later real-Frappe import must not reuse a module imported against stubs."""
+		missing = object()
+		original_modules = {name: sys.modules.pop(name, missing) for name in _STUB_BOUND_MODULES}
+		try:
+			_load_report_without_frappe()
+			self.assertEqual(
+				{name for name in _STUB_BOUND_MODULES if name in sys.modules},
+				set(),
+			)
+		finally:
+			for name in _STUB_BOUND_MODULES:
+				sys.modules.pop(name, None)
+			for name, original_module in original_modules.items():
+				if original_module is not missing:
+					sys.modules[name] = original_module
