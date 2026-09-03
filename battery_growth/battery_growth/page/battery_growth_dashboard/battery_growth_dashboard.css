@@ -1,0 +1,308 @@
+.bg-dashboard {
+  --bg-surface: var(--card-bg, #101825);
+  --bg-raised: var(--fg-color, #172337);
+  --bg-border: var(--border-color, #2b3d58);
+  --bg-muted: var(--text-muted, #b2c0d5);
+  --bg-text: var(--text-color, #f5f8ff);
+  --bg-blue: #4ba3ff;
+  --bg-green: #5bcf9b;
+  --bg-red: #f26d6d;
+  --bg-purple: #a889ff;
+  box-sizing: border-box;
+  color: var(--bg-text);
+  background: radial-gradient(
+    circle at top right,
+    #1e3454,
+    var(--bg-surface) 45%
+  );
+  padding: 24px;
+  min-width: 0;
+}
+
+.bg-dashboard *,
+.bg-dashboard *::before,
+.bg-dashboard *::after {
+  box-sizing: border-box;
+}
+
+.bg-dashboard button:focus-visible,
+.bg-dashboard [tabindex]:focus-visible {
+  outline: 3px solid #f4c663;
+  outline-offset: 3px;
+}
+
+.bg-dashboard .bg-status {
+  color: var(--bg-muted);
+  font-size: 14px;
+  min-height: 22px;
+  margin-bottom: 12px;
+}
+
+.bg-dashboard .bg-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.bg-dashboard .bg-actions .btn,
+.bg-dashboard .bg-ai-brief .btn {
+  color: var(--bg-text);
+  background: #233550;
+  border-color: #48627f;
+  min-height: 36px;
+}
+
+.bg-dashboard .bg-actions .btn:hover,
+.bg-dashboard .bg-ai-brief .btn:hover {
+  background: #314b70;
+}
+
+.bg-dashboard .bg-actions .btn:disabled,
+.bg-dashboard .bg-ai-brief .btn:disabled {
+  opacity: 0.6;
+}
+
+.bg-dashboard .bg-kpis {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.bg-dashboard .bg-kpi,
+.bg-dashboard .bg-panel,
+.bg-dashboard .bg-ai-brief,
+.bg-dashboard .bg-empty,
+.bg-dashboard .bg-error {
+  min-width: 0;
+  border: 1px solid var(--bg-border);
+  background: #172337;
+  background: color-mix(in srgb, var(--bg-raised) 88%, #0d1420);
+  border-radius: 10px;
+}
+
+.bg-dashboard .bg-kpi {
+  border-left: 4px solid var(--bg-blue);
+  padding: 18px;
+}
+
+.bg-dashboard .bg-kpi-positive {
+  border-left-color: var(--bg-green);
+}
+
+.bg-dashboard .bg-kpi-critical {
+  border-left-color: var(--bg-red);
+}
+
+.bg-dashboard .bg-kpi-label,
+.bg-dashboard .bg-panel-description,
+.bg-dashboard .bg-ai-content p {
+  margin: 0;
+}
+
+.bg-dashboard .bg-kpi-label,
+.bg-dashboard .bg-panel-description {
+  color: var(--bg-muted);
+  font-size: 16px;
+}
+
+.bg-dashboard .bg-kpi-value {
+  display: block;
+  margin-top: 8px;
+  font-size: clamp(28px, 2.1vw, 42px);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.bg-dashboard .bg-chart-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.bg-dashboard .bg-panel {
+  padding: 18px;
+}
+
+.bg-dashboard .bg-panel-trend {
+  grid-column: span 2;
+}
+
+.bg-dashboard .bg-panel-header,
+.bg-dashboard .bg-ai-header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.bg-dashboard .bg-panel h2,
+.bg-dashboard .bg-ai-brief h2 {
+  color: var(--bg-text);
+  font-size: 18px;
+  margin: 0;
+}
+
+.bg-dashboard .bg-chart-target {
+  min-height: 220px;
+}
+
+.bg-dashboard .bg-distribution-list,
+.bg-dashboard .bg-insight-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.bg-dashboard .bg-distribution-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--bg-border) 65%, transparent);
+}
+
+.bg-dashboard .bg-distribution-label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 16px;
+}
+
+.bg-dashboard .bg-distribution-values {
+  color: var(--bg-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.bg-dashboard .bg-distribution-values strong {
+  color: var(--bg-text);
+}
+
+.bg-dashboard .bg-distribution-track {
+  grid-column: 1 / -1;
+  height: 7px;
+  border-radius: 999px;
+  background: #283b57;
+}
+
+.bg-dashboard .bg-distribution-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--bg-blue);
+}
+
+.bg-dashboard .bg-panel-churn_reasons .bg-distribution-fill,
+.bg-dashboard .bg-insight-critical {
+  background: var(--bg-red);
+}
+
+.bg-dashboard .bg-ai-brief {
+  margin-top: 16px;
+  padding: 18px;
+}
+
+.bg-dashboard .bg-brief-meta,
+.bg-dashboard .bg-insight-action {
+  color: var(--bg-muted);
+  font-size: 14px;
+}
+
+.bg-dashboard .bg-brief-summary {
+  color: var(--bg-text);
+  font-size: 16px;
+  margin: 12px 0;
+}
+
+.bg-dashboard .bg-insight {
+  border-left: 3px solid var(--bg-blue);
+  background: #1a2940;
+  margin-top: 10px;
+  padding: 12px;
+}
+
+.bg-dashboard .bg-insight p {
+  margin-top: 8px;
+}
+
+.bg-dashboard .bg-insight-info {
+  border-left-color: var(--bg-blue);
+}
+
+.bg-dashboard .bg-insight-warning {
+  border-left-color: #f4c663;
+}
+
+.bg-dashboard .bg-insight-critical {
+  border-left-color: var(--bg-red);
+}
+
+.bg-dashboard .bg-empty,
+.bg-dashboard .bg-error {
+  grid-column: 1 / -1;
+  color: var(--bg-muted);
+  padding: 32px;
+  text-align: center;
+}
+
+.bg-dashboard .bg-error .btn {
+  margin-top: 12px;
+}
+
+.bg-dashboard.bg-is-fullscreen,
+.bg-dashboard:fullscreen {
+  min-height: 100%;
+  background-color: #0d1420;
+}
+
+@media (min-width: 1440px) {
+  .bg-dashboard .bg-kpis {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .bg-dashboard .bg-chart-grid {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+  }
+
+  .bg-dashboard .bg-panel-trend {
+    grid-column: span 8;
+  }
+
+  .bg-dashboard .bg-panel-customer-types,
+  .bg-dashboard .bg-panel-regions,
+  .bg-dashboard .bg-panel-plans,
+  .bg-dashboard .bg-panel-churn_reasons,
+  .bg-dashboard .bg-panel-stations {
+    grid-column: span 4;
+  }
+}
+
+@media (max-width: 991px) {
+  .bg-dashboard {
+    padding: 16px;
+  }
+
+  .bg-dashboard .bg-kpis,
+  .bg-dashboard .bg-chart-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .bg-dashboard .bg-panel-trend,
+  .bg-dashboard .bg-empty,
+  .bg-dashboard .bg-error {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 575px) {
+  .bg-dashboard .bg-panel-header,
+  .bg-dashboard .bg-ai-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .bg-dashboard .bg-ai-header .btn {
+    align-self: flex-start;
+  }
+}
