@@ -14,6 +14,14 @@ const sourcePath = path.join(
   "battery_growth_dashboard",
   "battery_growth_dashboard.js",
 );
+const stylePath = path.join(
+  __dirname,
+  "..",
+  "battery_growth",
+  "page",
+  "battery_growth_dashboard",
+  "battery_growth_dashboard.css",
+);
 
 function matches(element, selector) {
   if (selector.startsWith(".")) {
@@ -148,6 +156,43 @@ class FakeElement {
   }
 }
 
+class FakeJQuery {
+  constructor(element) {
+    this[0] = element;
+    this.element = element;
+    this.length = 1;
+    this.handlers = new Map();
+  }
+
+  append(...nodes) {
+    this.element.append(...nodes.map((node) => node.element || node));
+    return this;
+  }
+
+  empty() {
+    this.element.replaceChildren();
+    return this;
+  }
+
+  on(eventName, callback) {
+    this.handlers.set(eventName, callback);
+    return this;
+  }
+
+  off(eventName, callback) {
+    if (this.handlers.get(eventName) === callback) {
+      this.handlers.delete(eventName);
+    }
+    return this;
+  }
+
+  trigger(eventName) {
+    const callback = this.handlers.get(eventName);
+    if (callback) callback();
+    return this;
+  }
+}
+
 function deferred() {
   let resolve;
   let reject;
@@ -197,6 +242,14 @@ function boot(callQueue = []) {
   const timers = [];
   const charts = [];
   const fields = [];
+  const jqueryWrappers = new Map();
+  const jquery = (value) => {
+    if (value instanceof FakeJQuery) return value;
+    if (!jqueryWrappers.has(value)) {
+      jqueryWrappers.set(value, new FakeJQuery(value));
+    }
+    return jqueryWrappers.get(value);
+  };
   const page = {
     add_field(config) {
       const control = {
@@ -209,8 +262,7 @@ function boot(callQueue = []) {
       fields.push({ config, control });
       return control;
     },
-    add_inner_button() {},
-    main: new FakeElement("main"),
+    main: new FakeJQuery(new FakeElement("main")),
     set_title() {},
   };
   const context = {
@@ -228,6 +280,7 @@ function boot(callQueue = []) {
         return timer;
       },
     },
+    $: jquery,
     frappe: {
       Chart: class {
         constructor(target, options) {
@@ -253,7 +306,7 @@ function boot(callQueue = []) {
       pages: {},
       ui: {
         make_app_page: ({ parent }) => {
-          parent.append(page.main);
+          parent.append(page.main[0]);
           return page;
         },
       },
@@ -272,6 +325,7 @@ function boot(callQueue = []) {
     dashboard: wrapper.batteryGrowthDashboard,
     document,
     fields,
+    jquery,
     page,
     timers,
     wrapper,
@@ -282,6 +336,15 @@ async function run() {
   assert.ok(
     fs.existsSync(sourcePath),
     "dashboard production controller is missing",
+  );
+  const styles = fs.readFileSync(stylePath, "utf8");
+  assert.match(styles, /--bg-surface:\s*#101825;/, "surface is always dark");
+  assert.match(styles, /--bg-raised:\s*#172337;/, "cards are always dark");
+  assert.match(styles, /--bg-text:\s*#f5f8ff;/, "primary text is always light");
+  assert.doesNotMatch(
+    styles,
+    /var\(--(?:card-bg|fg-color|text-color)/,
+    "light-theme Frappe surfaces cannot override dashboard contrast",
   );
 
   const first = boot([
@@ -309,6 +372,61 @@ async function run() {
     "uses the mixed trend and customer-type Frappe charts",
   );
 
+  const lifecycle = boot([
+    () => Promise.resolve({ message: dashboardData() }),
+    () => Promise.resolve({ message: dashboardData() }),
+  ]);
+  await lifecycle.dashboard.show();
+  assert.equal(
+    lifecycle.dashboard.autoRefreshButton.getAttribute("aria-pressed"),
+    "false",
+    "automatic refresh begins in its announced off state",
+  );
+  assert.equal(
+    lifecycle.dashboard.fullscreenButton.getAttribute("aria-pressed"),
+    "false",
+    "fullscreen begins in its announced off state",
+  );
+  lifecycle.dashboard.autoRefreshButton.dispatch("click");
+  assert.equal(lifecycle.timers.length, 1, "opt-in creates one refresh timer");
+  lifecycle.jquery(lifecycle.wrapper).trigger("hide.battery-growth-dashboard");
+  assert.equal(
+    lifecycle.timers[0].cleared,
+    true,
+    "navigation hide stops polling",
+  );
+  await lifecycle.dashboard.show();
+  assert.equal(lifecycle.timers.length, 2, "show restores one opted-in timer");
+  assert.equal(
+    lifecycle.timers[1].cleared,
+    undefined,
+    "restored timer stays active",
+  );
+  lifecycle.dashboard.destroy();
+  assert.equal(
+    lifecycle
+      .jquery(lifecycle.wrapper)
+      .handlers.has("hide.battery-growth-dashboard"),
+    false,
+    "destroy removes the wrapper hide handler",
+  );
+
+  const fullscreen = boot([
+    () => Promise.resolve({ message: dashboardData() }),
+  ]);
+  await fullscreen.dashboard.show();
+  fullscreen.dashboard.root.requestFullscreen = () =>
+    Promise.reject(new Error("fullscreen denied"));
+  await assert.doesNotReject(
+    fullscreen.dashboard.toggleFullscreen(),
+    "a rejected fullscreen request is handled locally",
+  );
+  assert.match(
+    fullscreen.dashboard.status.textContent,
+    /无法进入全屏/,
+    "fullscreen failure gives an operator-visible status",
+  );
+
   const older = deferred();
   const newer = deferred();
   const stale = boot([() => older.promise, () => newer.promise]);
@@ -327,6 +445,44 @@ async function run() {
     stale.wrapper.textContent,
     /过期区域/,
     "stale response cannot overwrite latest data",
+  );
+
+  const delayedBrief = deferred();
+  const briefRace = boot([
+    () => Promise.resolve({ message: dashboardData("旧筛选区域") }),
+    () => delayedBrief.promise,
+    () => Promise.resolve({ message: dashboardData("新筛选区域") }),
+  ]);
+  await briefRace.dashboard.show();
+  const oldBriefRequest = briefRace.dashboard.loadBrief();
+  const customerType = briefRace.fields.find(
+    ({ config }) => config.fieldname === "customer_type",
+  );
+  customerType.control.set_value("个人");
+  await customerType.config.change();
+  assert.match(
+    briefRace.wrapper.textContent,
+    /新筛选区域/,
+    "new filters render their matching KPI response",
+  );
+  assert.doesNotMatch(
+    briefRace.wrapper.textContent,
+    /正在生成运营简报/,
+    "a filter change clears the old brief loading state",
+  );
+  delayedBrief.resolve({
+    message: {
+      generated_at: "2026-09-03T10:31:00",
+      source: "rules",
+      summary: "过期简报",
+      insights: [],
+    },
+  });
+  await oldBriefRequest;
+  assert.doesNotMatch(
+    briefRace.wrapper.textContent,
+    /过期简报/,
+    "an old brief cannot render beside newer KPI data",
   );
 
   const brief = boot([

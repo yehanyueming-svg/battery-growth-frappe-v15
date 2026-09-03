@@ -45,10 +45,15 @@
       this.charts = [];
       this.refreshTimer = null;
       this.requestSerial = 0;
+      this.briefRequestSerial = 0;
+      this.filterSnapshot = null;
       this.autoRefreshEnabled = false;
       this.destroyed = false;
       this.onFullscreenChange = this.syncFullscreenLabel.bind(this);
+      this.onWrapperHide = this.hide.bind(this);
+      this.$wrapper = $(wrapper);
       document.addEventListener("fullscreenchange", this.onFullscreenChange);
+      this.$wrapper.on("hide.battery-growth-dashboard", this.onWrapperHide);
       this.makePage();
       this.makeFilters();
     }
@@ -93,7 +98,7 @@
         this.chartGrid,
         this.aiBrief,
       );
-      this.page.main.replaceChildren(this.root);
+      this.page.main.empty().append(this.root);
       this.refreshButton = this.makeButton("bg-refresh", __("刷新数据"), () =>
         this.refresh(),
       );
@@ -112,11 +117,8 @@
         this.autoRefreshButton,
         this.fullscreenButton,
       );
-      this.page.add_inner_button(__("刷新"), () => this.refresh());
-      this.page.add_inner_button(__("自动刷新"), () =>
-        this.toggleAutoRefresh(),
-      );
-      this.page.add_inner_button(__("全屏"), () => this.toggleFullscreen());
+      this.autoRefreshButton.setAttribute("aria-pressed", "false");
+      this.fullscreenButton.setAttribute("aria-pressed", "false");
     }
 
     makeButton(className, label, callback) {
@@ -190,6 +192,22 @@
       return filters;
     }
 
+    getFilterRequest() {
+      const filters = this.getFilters();
+      return { filters, snapshot: JSON.stringify(filters) };
+    }
+
+    invalidateBrief() {
+      this.briefRequestSerial += 1;
+      this.aiContent.replaceChildren(
+        makeElement(
+          "p",
+          "bg-brief-pending",
+          __("筛选条件已变更，请重新生成运营简报。"),
+        ),
+      );
+    }
+
     show() {
       if (this.destroyed) {
         return Promise.resolve();
@@ -206,6 +224,11 @@
       if (this.destroyed || document.hidden) {
         return;
       }
+      const filterRequest = this.getFilterRequest();
+      if (this.filterSnapshot !== filterRequest.snapshot) {
+        this.filterSnapshot = filterRequest.snapshot;
+        this.invalidateBrief();
+      }
       const serial = ++this.requestSerial;
       this.refreshButton.disabled = true;
       this.setStatus(__("正在加载聚合运营数据…"));
@@ -213,7 +236,7 @@
         const response = await Promise.resolve(
           frappe.call({
             method: "battery_growth.api.dashboard.get_dashboard_data",
-            args: { filters: JSON.stringify(this.getFilters()) },
+            args: { filters: filterRequest.snapshot },
             freeze: false,
           }),
         );
@@ -492,11 +515,25 @@
       }
     }
 
-    toggleFullscreen() {
-      if (document.fullscreenElement === this.root) {
-        return document.exitFullscreen && document.exitFullscreen();
+    async toggleFullscreen() {
+      const isFullscreen = document.fullscreenElement === this.root;
+      const action = isFullscreen
+        ? document.exitFullscreen
+        : this.root.requestFullscreen;
+      const target = isFullscreen ? document : this.root;
+      if (typeof action !== "function") {
+        this.setStatus(__("当前浏览器不支持全屏模式。"));
+        return;
       }
-      return this.root.requestFullscreen && this.root.requestFullscreen();
+      try {
+        await Promise.resolve(action.call(target));
+      } catch (error) {
+        this.setStatus(
+          isFullscreen
+            ? __("无法退出全屏，请稍后重试。")
+            : __("无法进入全屏，请检查浏览器权限后重试。"),
+        );
+      }
     }
 
     syncFullscreenLabel() {
@@ -512,6 +549,12 @@
       if (this.destroyed) {
         return;
       }
+      const filterRequest = this.getFilterRequest();
+      if (this.filterSnapshot !== filterRequest.snapshot) {
+        this.filterSnapshot = filterRequest.snapshot;
+      }
+      const dashboardRequestSerial = this.requestSerial;
+      const briefRequestSerial = ++this.briefRequestSerial;
       this.briefButton.disabled = true;
       this.aiContent.replaceChildren(
         makeElement("p", "bg-brief-loading", __("正在生成运营简报…")),
@@ -521,16 +564,21 @@
           frappe.call({
             method: "battery_growth.api.dashboard.generate_operations_brief",
             type: "POST",
-            args: { filters: JSON.stringify(this.getFilters()), force: 1 },
+            args: { filters: filterRequest.snapshot, force: 1 },
             freeze: false,
           }),
         );
-        if (this.destroyed) {
+        if (
+          this.destroyed ||
+          briefRequestSerial !== this.briefRequestSerial ||
+          dashboardRequestSerial !== this.requestSerial ||
+          filterRequest.snapshot !== this.filterSnapshot
+        ) {
           return;
         }
         this.renderBrief((response && response.message) || {});
       } catch (error) {
-        if (!this.destroyed) {
+        if (!this.destroyed && briefRequestSerial === this.briefRequestSerial) {
           this.aiContent.replaceChildren(
             makeElement(
               "p",
@@ -540,7 +588,7 @@
           );
         }
       } finally {
-        if (!this.destroyed) {
+        if (!this.destroyed && briefRequestSerial === this.briefRequestSerial) {
           this.briefButton.disabled = false;
         }
       }
@@ -606,6 +654,7 @@
       this.stopAutoRefresh();
       this.destroyCharts();
       document.removeEventListener("fullscreenchange", this.onFullscreenChange);
+      this.$wrapper.off("hide.battery-growth-dashboard", this.onWrapperHide);
     }
   }
 
@@ -618,6 +667,4 @@
   };
   frappe.pages[PAGE_NAME].on_page_show = (wrapper) =>
     wrapper.batteryGrowthDashboard.show();
-  frappe.pages[PAGE_NAME].on_page_hide = (wrapper) =>
-    wrapper.batteryGrowthDashboard.hide();
 })();

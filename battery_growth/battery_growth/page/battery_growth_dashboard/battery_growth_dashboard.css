@@ -1,9 +1,9 @@
 .bg-dashboard {
-  --bg-surface: var(--card-bg, #101825);
-  --bg-raised: var(--fg-color, #172337);
-  --bg-border: var(--border-color, #2b3d58);
-  --bg-muted: var(--text-muted, #b2c0d5);
-  --bg-text: var(--text-color, #f5f8ff);
+  --bg-surface: #101825;
+  --bg-raised: #172337;
+  --bg-border: #2b3d58;
+  --bg-muted: #b2c0d5;
+  --bg-text: #f5f8ff;
   --bg-blue: #4ba3ff;
   --bg-green: #5bcf9b;
   --bg-red: #f26d6d;
