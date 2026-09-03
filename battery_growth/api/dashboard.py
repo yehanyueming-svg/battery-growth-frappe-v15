@@ -21,7 +21,7 @@ def _normalize_api_filters(filters):
 	try:
 		return normalize_filters(filters)
 	except ValueError as error:
-		raise frappe.ValidationError(str(error)) from None
+		frappe.throw(str(error), exc=frappe.ValidationError)
 
 
 @frappe.whitelist()

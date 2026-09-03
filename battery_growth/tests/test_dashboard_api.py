@@ -43,12 +43,20 @@ def _load_dashboard_without_frappe():
 	frappe.get_single = lambda _doctype: None
 	frappe.cache = lambda: None
 	frappe.log_error = lambda *_args, **_kwargs: None
+	frappe.whitelisted = set()
+	frappe.allowed_http_methods_for_whitelisted_func = {}
+	frappe.throw_calls = []
+
+	def throw(message, exc=None):
+		frappe.throw_calls.append((message, exc))
+		raise (exc or frappe.ValidationError)(message)
+
+	frappe.throw = throw
 
 	def whitelist(methods=None):
 		def decorate(method):
-			method.whitelisted = True
-			if methods is not None:
-				method.allowed_http_methods = methods
+			frappe.whitelisted.add(method)
+			frappe.allowed_http_methods_for_whitelisted_func[method] = methods
 			return method
 		return decorate
 
@@ -137,10 +145,15 @@ class TestDashboardAPI(FrappeTestCase):
 		with self.assertRaises(dashboard.frappe.ValidationError) as captured:
 			dashboard.get_dashboard_data({"from_date": "2026-02-01", "to_date": "2026-01-01"})
 		self.assertIn("开始日期不能晚于结束日期", str(captured.exception))
+		self.assertIn(
+			("开始日期不能晚于结束日期", dashboard.frappe.ValidationError), dashboard.frappe.throw_calls
+		)
 
 	def test_operations_brief_is_post_whitelisted_and_denies_before_service_work(self):
-		self.assertTrue(dashboard.generate_operations_brief.whitelisted)
-		self.assertEqual(dashboard.generate_operations_brief.allowed_http_methods, ["POST"])
+		self.assertIn(dashboard.generate_operations_brief, dashboard.frappe.whitelisted)
+		self.assertEqual(
+			dashboard.frappe.allowed_http_methods_for_whitelisted_func[dashboard.generate_operations_brief], ["POST"]
+		)
 		dashboard.frappe.has_permission = lambda *_args, **_kwargs: False
 		dashboard.normalize_filters = lambda _filters: self.fail("normalization must not run")
 		dashboard.get_operations_brief = lambda *_args, **_kwargs: self.fail("brief service must not run")
@@ -155,7 +168,7 @@ class TestDashboardAPI(FrappeTestCase):
 		self.assertEqual(brief_calls, [({"normalized": {"city": "杭州市"}}, False), ({"normalized": {"city": "杭州市"}}, True)])
 
 	def test_dashboard_read_endpoint_is_whitelisted(self):
-		self.assertTrue(dashboard.get_dashboard_data.whitelisted)
+		self.assertIn(dashboard.get_dashboard_data, dashboard.frappe.whitelisted)
 
 
 class TestNoFrappeIsolation(FrappeTestCase):
