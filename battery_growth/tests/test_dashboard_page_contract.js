@@ -187,8 +187,10 @@ class FakeJQuery {
   }
 
   trigger(eventName) {
-    const callback = this.handlers.get(eventName);
-    if (callback) callback();
+    const eventType = eventName.split(".")[0];
+    this.handlers.forEach((callback, registeredName) => {
+      if (registeredName.split(".")[0] === eventType) callback();
+    });
     return this;
   }
 }
@@ -346,6 +348,26 @@ async function run() {
     /var\(--(?:card-bg|fg-color|text-color)/,
     "light-theme Frappe surfaces cannot override dashboard contrast",
   );
+  assert.match(
+    styles,
+    /--bg-font-stack:\s*var\(\s*--font-stack,/,
+    "font stack keeps a safe Frappe v15 variable fallback",
+  );
+  assert.match(
+    styles,
+    /--bg-radius:\s*var\(--border-radius-md,/,
+    "card radius keeps a safe Frappe v15 variable fallback",
+  );
+  assert.match(
+    styles,
+    /--bg-focus:\s*var\(--primary,/,
+    "focus accent keeps a safe Frappe v15 variable fallback",
+  );
+  assert.match(
+    styles,
+    /--bg-space:\s*var\(--padding-md,/,
+    "spacing keeps a safe Frappe v15 variable fallback",
+  );
 
   const first = boot([
     () => Promise.resolve({ message: dashboardData("<img src=x onerror=1>") }),
@@ -389,7 +411,7 @@ async function run() {
   );
   lifecycle.dashboard.autoRefreshButton.dispatch("click");
   assert.equal(lifecycle.timers.length, 1, "opt-in creates one refresh timer");
-  lifecycle.jquery(lifecycle.wrapper).trigger("hide.battery-growth-dashboard");
+  lifecycle.jquery(lifecycle.wrapper).trigger("hide");
   assert.equal(
     lifecycle.timers[0].cleared,
     true,
@@ -470,6 +492,11 @@ async function run() {
     /正在生成运营简报/,
     "a filter change clears the old brief loading state",
   );
+  assert.equal(
+    briefRace.dashboard.briefButton.disabled,
+    false,
+    "a filter change immediately restores brief-button usability",
+  );
   delayedBrief.resolve({
     message: {
       generated_at: "2026-09-03T10:31:00",
@@ -483,6 +510,71 @@ async function run() {
     briefRace.wrapper.textContent,
     /过期简报/,
     "an old brief cannot render beside newer KPI data",
+  );
+  assert.equal(
+    briefRace.dashboard.briefButton.disabled,
+    false,
+    "a stale successful brief completion cannot relock the button",
+  );
+
+  const rejectedBrief = deferred();
+  const briefFailureRace = boot([
+    () => Promise.resolve({ message: dashboardData("失败前区域") }),
+    () => rejectedBrief.promise,
+    () => Promise.resolve({ message: dashboardData("失败后区域") }),
+  ]);
+  await briefFailureRace.dashboard.show();
+  const oldFailedBriefRequest = briefFailureRace.dashboard.loadBrief();
+  const failureCustomerType = briefFailureRace.fields.find(
+    ({ config }) => config.fieldname === "customer_type",
+  );
+  failureCustomerType.control.set_value("个人");
+  await failureCustomerType.config.change();
+  rejectedBrief.reject(new Error("old brief failed"));
+  await oldFailedBriefRequest;
+  assert.equal(
+    briefFailureRace.dashboard.briefButton.disabled,
+    false,
+    "a stale failed brief completion cannot lock the button",
+  );
+  assert.doesNotMatch(
+    briefFailureRace.wrapper.textContent,
+    /简报生成失败/,
+    "a stale failed brief cannot replace the current prompt",
+  );
+
+  const sameFilterBrief = deferred();
+  const sameFilterRefresh = boot([
+    () => Promise.resolve({ message: dashboardData("刷新前区域") }),
+    () => sameFilterBrief.promise,
+    () => Promise.resolve({ message: dashboardData("刷新后区域") }),
+  ]);
+  await sameFilterRefresh.dashboard.show();
+  const pendingSameFilterBrief = sameFilterRefresh.dashboard.loadBrief();
+  await sameFilterRefresh.dashboard.refresh();
+  assert.match(
+    sameFilterRefresh.wrapper.textContent,
+    /刷新后区域/,
+    "same-filter refresh renders its newer aggregate data",
+  );
+  assert.doesNotMatch(
+    sameFilterRefresh.wrapper.textContent,
+    /正在生成运营简报/,
+    "same-filter refresh clears a pending old brief",
+  );
+  assert.equal(
+    sameFilterRefresh.dashboard.briefButton.disabled,
+    false,
+    "same-filter refresh restores brief-button usability",
+  );
+  sameFilterBrief.resolve({
+    message: { source: "rules", summary: "同筛选过期简报", insights: [] },
+  });
+  await pendingSameFilterBrief;
+  assert.doesNotMatch(
+    sameFilterRefresh.wrapper.textContent,
+    /同筛选过期简报/,
+    "same-filter stale brief cannot render after refreshed data",
   );
 
   const brief = boot([

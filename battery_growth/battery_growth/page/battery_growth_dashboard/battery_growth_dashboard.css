@@ -8,14 +8,25 @@
   --bg-green: #5bcf9b;
   --bg-red: #f26d6d;
   --bg-purple: #a889ff;
+  --bg-font-stack: var(
+    --font-stack,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif
+  );
+  --bg-radius: var(--border-radius-md, 10px);
+  --bg-focus: var(--primary, #f4c663);
+  --bg-space: var(--padding-md, 16px);
   box-sizing: border-box;
   color: var(--bg-text);
+  font-family: var(--bg-font-stack);
   background: radial-gradient(
     circle at top right,
     #1e3454,
     var(--bg-surface) 45%
   );
-  padding: 24px;
+  padding: calc(var(--bg-space) + 8px);
   min-width: 0;
 }
 
@@ -27,7 +38,7 @@
 
 .bg-dashboard button:focus-visible,
 .bg-dashboard [tabindex]:focus-visible {
-  outline: 3px solid #f4c663;
+  outline: 3px solid var(--bg-focus);
   outline-offset: 3px;
 }
 
@@ -79,7 +90,7 @@
   border: 1px solid var(--bg-border);
   background: #172337;
   background: color-mix(in srgb, var(--bg-raised) 88%, #0d1420);
-  border-radius: 10px;
+  border-radius: var(--bg-radius);
 }
 
 .bg-dashboard .bg-kpi {

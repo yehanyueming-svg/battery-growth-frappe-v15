@@ -197,13 +197,14 @@
       return { filters, snapshot: JSON.stringify(filters) };
     }
 
-    invalidateBrief() {
+    invalidateBrief(message) {
       this.briefRequestSerial += 1;
+      this.briefButton.disabled = false;
       this.aiContent.replaceChildren(
         makeElement(
           "p",
           "bg-brief-pending",
-          __("筛选条件已变更，请重新生成运营简报。"),
+          message || __("运营数据已刷新，请重新生成运营简报。"),
         ),
       );
     }
@@ -225,10 +226,11 @@
         return;
       }
       const filterRequest = this.getFilterRequest();
-      if (this.filterSnapshot !== filterRequest.snapshot) {
-        this.filterSnapshot = filterRequest.snapshot;
-        this.invalidateBrief();
-      }
+      const filtersChanged = this.filterSnapshot !== filterRequest.snapshot;
+      this.filterSnapshot = filterRequest.snapshot;
+      this.invalidateBrief(
+        filtersChanged ? __("筛选条件已变更，请重新生成运营简报。") : undefined,
+      );
       const serial = ++this.requestSerial;
       this.refreshButton.disabled = true;
       this.setStatus(__("正在加载聚合运营数据…"));
