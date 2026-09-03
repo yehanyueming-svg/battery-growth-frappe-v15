@@ -5,6 +5,7 @@ import importlib
 import sys
 import types
 import unittest
+from collections import Counter
 
 
 class ValidationError(Exception):
@@ -111,9 +112,9 @@ class TestDemoGenerator(unittest.TestCase):
 		DB.commit_calls = 0
 
 	def test_seed_creates_exact_count_of_valid_rows_with_reactivations(self):
-		result = demo.seed_demo_data(rebuild=True, count=50)
-		self.assertEqual(result, {"created": 50, "skipped": 0})
-		self.assertEqual(len(DB.rows), 50)
+		result = demo.seed_demo_data(rebuild=True, count=240)
+		self.assertEqual(result, {"created": 240, "skipped": 0})
+		self.assertEqual(len(DB.rows), 240)
 		self.assertEqual(DB.commit_calls, 1)
 		self.assertTrue(all(row["is_mock"] == 1 for row in DB.rows))
 		self.assertTrue(all(row["customer_type"] in {"个人", "企业"} for row in DB.rows))
@@ -124,11 +125,21 @@ class TestDemoGenerator(unittest.TestCase):
 		for row in DB.rows:
 			by_code.setdefault(row["customer_code"], []).append(row)
 		reactivated = [rows for rows in by_code.values() if len(rows) == 2]
-		self.assertEqual(len(reactivated), 6)
+		self.assertEqual(len(reactivated), 28)
 		for rows in reactivated:
 			self.assertEqual(rows[0]["service_status"], "已流失")
 			self.assertEqual(rows[1]["service_status"], "在服")
-			self.assertLess(rows[0]["activation_date"], rows[1]["activation_date"])
+			self.assertLess(rows[0]["churn_date"], rows[1]["activation_date"])
+
+	def test_default_seed_has_zhejiang_majority_and_other_regions(self):
+		demo.seed_demo_data(rebuild=True)
+		province_counts = Counter(row["province"] for row in DB.rows)
+		self.assertGreater(province_counts["浙江省"], len(DB.rows) // 2)
+		self.assertGreater(sum(count for province, count in province_counts.items() if province != "浙江省"), 0)
+		self.assertTrue(
+			all(row["city"] in row["swap_station"] for row in DB.rows),
+			"station labels must remain coherent with their city",
+		)
 
 	def test_seed_is_deterministic_idempotent_and_preserves_non_mock_rows(self):
 		non_mock = {"customer_code": "REAL-001", "is_mock": 0}
@@ -155,4 +166,3 @@ class TestDemoGenerator(unittest.TestCase):
 		demo.after_install()
 		self.assertEqual(len(DB.rows), 240)
 		self.assertEqual(DB.commit_calls, 1)
-

@@ -7,16 +7,19 @@ import frappe
 
 
 _SEED = 20260903
-_CITIES = (("杭州市", 34), ("宁波市", 22), ("温州市", 18), ("嘉兴市", 12), ("绍兴市", 9), ("湖州市", 5))
-_CHANNELS = (("直营网点", 40), ("企业合作", 25), ("渠道代理", 20), ("线上推广", 15))
-_STATIONS = (
-	("杭州城北换电站", 20),
-	("杭州滨江换电站", 18),
-	("宁波鄞州换电站", 17),
-	("温州龙湾换电站", 15),
-	("嘉兴南湖换电站", 15),
-	("绍兴柯桥换电站", 15),
+_REGIONS = (
+	("浙江省", "杭州市", "杭州市城北换电站", 28),
+	("浙江省", "杭州市", "杭州市滨江换电站", 16),
+	("浙江省", "宁波市", "宁波市鄞州换电站", 16),
+	("浙江省", "温州市", "温州市龙湾换电站", 13),
+	("浙江省", "嘉兴市", "嘉兴市南湖换电站", 9),
+	("浙江省", "绍兴市", "绍兴市柯桥换电站", 7),
+	("浙江省", "湖州市", "湖州市吴兴换电站", 3),
+	("上海市", "上海市", "上海市嘉定换电站", 3),
+	("江苏省", "苏州市", "苏州市吴中换电站", 3),
+	("安徽省", "宣城市", "宣城市宣州换电站", 2),
 )
+_CHANNELS = (("直营网点", 40), ("企业合作", 25), ("渠道代理", 20), ("线上推广", 15))
 _BATTERY_MODELS = (("ZGS-LFP-48", 45), ("ZGS-LFP-60", 35), ("ZGS-LFP-72", 20))
 _STATUSES = (("在服", 72), ("暂停", 12), ("已流失", 16))
 _CHURN_REASONS = (("价格", 24), ("服务覆盖", 22), ("迁移", 18), ("业务停止", 16), ("竞品", 16), ("其他", 4))
@@ -31,6 +34,13 @@ def _month_anchor():
 	return frappe.utils.getdate(frappe.utils.today()).replace(day=1)
 
 
+def _weighted_region(randomizer):
+	province, city, station, _weight = randomizer.choices(
+		_REGIONS, weights=[region[3] for region in _REGIONS], k=1
+	)[0]
+	return province, city, station
+
+
 def _customer_type(index):
 	return "个人" if index % 3 else "企业"
 
@@ -41,8 +51,10 @@ def _customer_code(customer_type, counters):
 	return f"MOCK-{prefix}-{counters[prefix]:04d}"
 
 
-def _build_record(randomizer, anchor, customer_type, customer_code, activation_date, status=None):
-	city = _weighted_choice(randomizer, _CITIES)
+def _build_record(
+	randomizer, anchor, customer_type, customer_code, activation_date, status=None, region=None, churn_date=None
+):
+	province, city, station = region or _weighted_region(randomizer)
 	service_status = status or _weighted_choice(randomizer, _STATUSES)
 	if customer_type == "个人":
 		vehicle_count = 1
@@ -72,9 +84,9 @@ def _build_record(randomizer, anchor, customer_type, customer_code, activation_d
 		"service_status": service_status,
 		"activation_date": activation_date.isoformat(),
 		"acquisition_channel": _weighted_choice(randomizer, _CHANNELS),
-		"province": "浙江省",
+		"province": province,
 		"city": city,
-		"swap_station": _weighted_choice(randomizer, _STATIONS),
+		"swap_station": station,
 		"battery_model": _weighted_choice(randomizer, _BATTERY_MODELS),
 		"vehicle_count": vehicle_count,
 		"battery_count": battery_count,
@@ -85,7 +97,9 @@ def _build_record(randomizer, anchor, customer_type, customer_code, activation_d
 		"is_mock": 1,
 	}
 	if service_status == "已流失":
-		churn_date = min(anchor - timedelta(days=1), activation_date + timedelta(days=randomizer.randint(14, 150)))
+		churn_date = churn_date or min(
+			anchor - timedelta(days=1), activation_date + timedelta(days=randomizer.randint(14, 150))
+		)
 		record["churn_date"] = churn_date.isoformat()
 		record["churn_reason"] = _weighted_choice(randomizer, _CHURN_REASONS)
 		if record["churn_reason"] == "其他":
@@ -104,14 +118,31 @@ def _build_records(count):
 		customer_type = _customer_type(index)
 		customer_code = _customer_code(customer_type, counters)
 		activation_date = anchor - timedelta(days=randomizer.randint(210, 340))
+		region = _weighted_region(randomizer)
+		churn_date = activation_date + timedelta(days=randomizer.randint(30, 100))
 		records.append(
-			_build_record(randomizer, anchor, customer_type, customer_code, activation_date, status="已流失")
+			_build_record(
+				randomizer,
+				anchor,
+				customer_type,
+				customer_code,
+				activation_date,
+				status="已流失",
+				region=region,
+				churn_date=churn_date,
+			)
 		)
-		reactivation_date = min(
-			anchor - timedelta(days=1), activation_date + timedelta(days=randomizer.randint(40, 120))
-		)
+		reactivation_date = churn_date + timedelta(days=randomizer.randint(14, 90))
 		records.append(
-			_build_record(randomizer, anchor, customer_type, customer_code, reactivation_date, status="在服")
+			_build_record(
+				randomizer,
+				anchor,
+				customer_type,
+				customer_code,
+				reactivation_date,
+				status="在服",
+				region=region,
+			)
 		)
 
 	for index in range(count - (reactivation_count * 2)):
