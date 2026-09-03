@@ -28,5 +28,5 @@ class ServiceSubscription(Document):
 	def _validate_non_negative_values(self):
 		if self.vehicle_count < 1 or self.battery_count < 1:
 			frappe.throw(_("车辆数量和电池数量必须大于 0"))
-		if self.monthly_fee < 0:
+		if self.monthly_fee is not None and self.monthly_fee < 0:
 			frappe.throw(_("月服务费不能小于 0"))

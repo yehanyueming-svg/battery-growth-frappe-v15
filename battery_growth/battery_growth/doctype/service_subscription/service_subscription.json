@@ -107,8 +107,7 @@
       "fieldname": "acquisition_channel",
       "fieldtype": "Select",
       "label": "获客渠道",
-      "options": "直营网点\n企业合作\n渠道代理\n线上推广",
-      "reqd": 1
+      "options": "直营网点\n企业合作\n渠道代理\n线上推广"
     },
     {
       "fieldname": "region_section",

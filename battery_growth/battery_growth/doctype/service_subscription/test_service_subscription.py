@@ -46,3 +46,28 @@ class TestServiceSubscription(FrappeTestCase):
 			make_subscription(
 				service_status="已流失", churn_date="2026-02-01", churn_reason="其他"
 			).insert()
+
+	def test_blank_monthly_fee_is_allowed(self):
+		make_subscription(monthly_fee=None).insert()
+
+	def test_negative_monthly_fee_is_rejected(self):
+		with self.assertRaises(frappe.ValidationError):
+			make_subscription(monthly_fee=-1).insert()
+
+	def test_valid_lifecycle_records_insert(self):
+		valid_records = [
+			{},
+			{"service_status": "暂停"},
+			{
+				"service_status": "已流失",
+				"churn_date": "2026-02-01",
+				"churn_reason": "其他",
+				"churn_note": "迁往外地",
+			},
+			{"customer_type": "企业", "vehicle_count": 2},
+			{"monthly_fee": None},
+			{"monthly_fee": 0},
+		]
+		for values in valid_records:
+			with self.subTest(values=values):
+				make_subscription(**values).insert()
