@@ -16,7 +16,7 @@
     sans-serif
   );
   --bg-radius: var(--border-radius-md, 10px);
-  --bg-focus: var(--primary, #f4c663);
+  --bg-focus: var(--yellow-300, #f4c663);
   --bg-space: var(--padding-md, 16px);
   box-sizing: border-box;
   color: var(--bg-text);

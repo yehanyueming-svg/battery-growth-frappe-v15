@@ -360,8 +360,13 @@ async function run() {
   );
   assert.match(
     styles,
+    /--bg-focus:\s*var\(--yellow-300,\s*#f4c663\);/,
+    "focus accent keeps a reliably light Frappe v15 yellow fallback",
+  );
+  assert.doesNotMatch(
+    styles,
     /--bg-focus:\s*var\(--primary,/,
-    "focus accent keeps a safe Frappe v15 variable fallback",
+    "focus accent cannot inherit an unknown-contrast primary color",
   );
   assert.match(
     styles,
