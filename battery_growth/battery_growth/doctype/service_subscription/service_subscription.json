@@ -1,0 +1,213 @@
+{
+  "actions": [],
+  "allow_import": 1,
+  "autoname": "ZGS-.YYYY.-.#####",
+  "doctype": "DocType",
+  "engine": "InnoDB",
+  "field_order": [
+    "customer_section",
+    "customer_code",
+    "customer_name",
+    "customer_type",
+    "contact_person",
+    "mobile",
+    "organization",
+    "service_section",
+    "service_plan",
+    "service_status",
+    "activation_date",
+    "churn_date",
+    "acquisition_channel",
+    "region_section",
+    "province",
+    "city",
+    "swap_station",
+    "equipment_section",
+    "battery_model",
+    "scale_section",
+    "vehicle_count",
+    "battery_count",
+    "monthly_fee",
+    "churn_section",
+    "churn_reason",
+    "churn_note",
+    "system_section",
+    "is_mock"
+  ],
+  "fields": [
+    {
+      "fieldname": "customer_section",
+      "fieldtype": "Section Break",
+      "label": "客户"
+    },
+    {
+      "fieldname": "customer_code",
+      "fieldtype": "Data",
+      "in_list_view": 1,
+      "label": "客户编码",
+      "reqd": 1
+    },
+    {
+      "fieldname": "customer_name",
+      "fieldtype": "Data",
+      "in_list_view": 1,
+      "in_standard_filter": 1,
+      "label": "客户名称",
+      "reqd": 1
+    },
+    {
+      "fieldname": "customer_type",
+      "fieldtype": "Select",
+      "in_list_view": 1,
+      "in_standard_filter": 1,
+      "label": "客户类型",
+      "options": "个人\n企业",
+      "reqd": 1
+    },
+    { "fieldname": "contact_person", "fieldtype": "Data", "label": "联系人" },
+    { "fieldname": "mobile", "fieldtype": "Data", "label": "手机号" },
+    { "fieldname": "organization", "fieldtype": "Data", "label": "所属企业" },
+    {
+      "fieldname": "service_section",
+      "fieldtype": "Section Break",
+      "label": "服务"
+    },
+    {
+      "fieldname": "service_plan",
+      "fieldtype": "Select",
+      "label": "服务套餐",
+      "options": "基础换电\n畅换\n企业车队",
+      "reqd": 1
+    },
+    {
+      "fieldname": "service_status",
+      "fieldtype": "Select",
+      "in_list_view": 1,
+      "in_standard_filter": 1,
+      "label": "服务状态",
+      "options": "在服\n暂停\n已流失",
+      "reqd": 1
+    },
+    {
+      "fieldname": "activation_date",
+      "fieldtype": "Date",
+      "in_list_view": 1,
+      "in_standard_filter": 1,
+      "label": "开通日期",
+      "reqd": 1,
+      "search_index": 1
+    },
+    {
+      "fieldname": "churn_date",
+      "fieldtype": "Date",
+      "label": "流失日期",
+      "search_index": 1
+    },
+    {
+      "fieldname": "acquisition_channel",
+      "fieldtype": "Select",
+      "label": "获客渠道",
+      "options": "直营网点\n企业合作\n渠道代理\n线上推广",
+      "reqd": 1
+    },
+    {
+      "fieldname": "region_section",
+      "fieldtype": "Section Break",
+      "label": "区域"
+    },
+    {
+      "fieldname": "province",
+      "fieldtype": "Data",
+      "in_list_view": 1,
+      "in_standard_filter": 1,
+      "label": "省份",
+      "reqd": 1,
+      "search_index": 1
+    },
+    {
+      "fieldname": "city",
+      "fieldtype": "Data",
+      "in_list_view": 1,
+      "in_standard_filter": 1,
+      "label": "城市",
+      "reqd": 1,
+      "search_index": 1
+    },
+    { "fieldname": "swap_station", "fieldtype": "Data", "label": "换电站" },
+    {
+      "fieldname": "equipment_section",
+      "fieldtype": "Section Break",
+      "label": "设备"
+    },
+    { "fieldname": "battery_model", "fieldtype": "Data", "label": "电池型号" },
+    {
+      "fieldname": "scale_section",
+      "fieldtype": "Section Break",
+      "label": "规模"
+    },
+    {
+      "fieldname": "vehicle_count",
+      "fieldtype": "Int",
+      "label": "车辆数量",
+      "reqd": 1
+    },
+    {
+      "fieldname": "battery_count",
+      "fieldtype": "Int",
+      "label": "电池数量",
+      "reqd": 1
+    },
+    {
+      "fieldname": "monthly_fee",
+      "fieldtype": "Currency",
+      "label": "月服务费"
+    },
+    {
+      "fieldname": "churn_section",
+      "fieldtype": "Section Break",
+      "label": "流失信息"
+    },
+    {
+      "fieldname": "churn_reason",
+      "fieldtype": "Select",
+      "label": "流失原因",
+      "options": "价格\n服务覆盖\n迁移\n业务停止\n竞品\n其他"
+    },
+    {
+      "fieldname": "churn_note",
+      "fieldtype": "Small Text",
+      "label": "流失说明"
+    },
+    {
+      "fieldname": "system_section",
+      "fieldtype": "Section Break",
+      "label": "系统"
+    },
+    {
+      "default": "0",
+      "fieldname": "is_mock",
+      "fieldtype": "Check",
+      "hidden": 1,
+      "label": "演示数据",
+      "read_only": 1
+    }
+  ],
+  "module": "Battery Growth",
+  "name": "Service Subscription",
+  "permissions": [
+    {
+      "create": 1,
+      "delete": 1,
+      "email": 1,
+      "export": 1,
+      "print": 1,
+      "read": 1,
+      "report": 1,
+      "role": "System Manager",
+      "write": 1
+    }
+  ],
+  "sort_field": "modified",
+  "sort_order": "DESC",
+  "track_changes": 1
+}
