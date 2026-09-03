@@ -49,7 +49,7 @@ class TestWorkspaceStaticContract(unittest.TestCase):
 		self.assertEqual(workspace["label"], "智格用户增长中心")
 		self.assertEqual(workspace["module"], "Battery Growth")
 		self.assertEqual(workspace["public"], 1)
-		self.assertEqual(workspace["icon"], "chart-line")
+		self.assertEqual(workspace["icon"], "chart")
 
 		shortcuts = {(item["type"], item["link_to"]): item for item in workspace["shortcuts"]}
 		self.assertEqual(set(shortcuts), {("DocType", "Service Subscription")})
