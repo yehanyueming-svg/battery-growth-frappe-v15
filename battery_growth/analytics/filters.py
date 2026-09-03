@@ -72,10 +72,24 @@ def _parse_raw(raw) -> dict:
 	return raw
 
 
+def _typed_filter_values(value: GrowthFilters) -> dict:
+	"""Keep typed dates and literals intact while routing through shared validation."""
+	return {
+		"from_date": value.from_date,
+		"to_date": value.to_date,
+		"granularity": value.granularity,
+		"customer_type": value.customer_type,
+		"province": value.province,
+		"city": value.city,
+		"service_plan": value.service_plan,
+		"acquisition_channel": value.acquisition_channel,
+	}
+
+
 def normalize_filters(raw=None) -> GrowthFilters:
 	"""Return a validated, immutable query filter value object."""
 	if isinstance(raw, GrowthFilters):
-		return raw
+		raw = _typed_filter_values(raw)
 	raw = _parse_raw(raw)
 	from_date = _parse_date(raw.get("from_date"), "from_date", _default_from_date())
 	to_date = _parse_date(raw.get("to_date"), "to_date", getdate(today()))

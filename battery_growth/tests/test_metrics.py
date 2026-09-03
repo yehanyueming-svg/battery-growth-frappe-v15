@@ -324,3 +324,26 @@ class TestGrowthFilters(FrappeTestCase):
 		self.assertEqual(accepted.to_date, datetime.date(2025, 12, 31))
 		with self.assertRaises(ValueError):
 			filters.normalize_filters({"from_date": "2023-01-01", "to_date": "2026-01-01"})
+
+	def test_revalidates_typed_filters_against_the_shared_rules(self):
+		invalid_filters = (
+			filters.GrowthFilters(datetime.date(2026, 2, 1), datetime.date(2026, 1, 1)),
+			filters.GrowthFilters(datetime.date(2023, 1, 1), datetime.date(2026, 1, 1)),
+			filters.GrowthFilters(datetime.date(2026, 1, 1), datetime.date(2026, 1, 31), "Day"),
+		)
+		for value in invalid_filters:
+			with self.subTest(value=value), self.assertRaises(ValueError):
+				filters.normalize_filters(value)
+
+	def test_accepts_a_valid_typed_filter_without_mutating_it(self):
+		value = filters.GrowthFilters(
+			from_date=datetime.date(2026, 1, 1),
+			to_date=datetime.date(2026, 1, 31),
+			granularity="Week",
+			customer_type="企业",
+			province="浙江省",
+			city="杭州市",
+			service_plan="企业车队",
+			acquisition_channel="企业合作",
+		)
+		self.assertEqual(filters.normalize_filters(value), value)
