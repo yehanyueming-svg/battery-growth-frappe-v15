@@ -392,7 +392,8 @@ async function run() {
     "dashboard content preserves Frappe's visible filter host",
   );
   assert.equal(
-    first.page.main[0].querySelectorAll('[data-fieldname="customer_type"]').length,
+    first.page.main[0].querySelectorAll('[data-fieldname="customer_type"]')
+      .length,
     1,
     "customer-type filtering remains visible on the dashboard",
   );
