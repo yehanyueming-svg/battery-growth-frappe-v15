@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Literal
 
+import frappe
 from frappe import _
 from frappe.utils import getdate, today
 
@@ -57,7 +58,7 @@ def _parse_date(value, fieldname: str, default: date) -> date:
         raise ValueError(_(f"{fieldname} 必须是有效日期"))
     try:
         return getdate(value)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, getattr(frappe, "ValidationError", ValueError)):
         raise ValueError(_(f"{fieldname} 必须是有效日期")) from None
 
 

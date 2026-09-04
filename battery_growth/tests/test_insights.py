@@ -548,7 +548,11 @@ class TestOperationsBrief(FrappeTestCase):
 
 class TestSettingsValidation(FrappeTestCase):
     def test_settings_bound_timeout_cache_and_provider_url(self):
-        settings = settings_controller.GrowthAISettings()
+        settings = (
+            settings_controller.GrowthAISettings()
+            if _frappe is None
+            else _frappe.new_doc("Growth AI Settings")
+        )
         for timeout, cache_minutes in ((0, 15), (121, 15), (15, 0), (15, 1441)):
             settings.timeout_seconds = timeout
             settings.cache_minutes = cache_minutes
