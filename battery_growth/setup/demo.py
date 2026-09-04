@@ -159,7 +159,6 @@ def _build_records(count):
     return records
 
 
-@frappe.whitelist()
 def seed_demo_data(rebuild: bool = False, count: int = 240) -> dict[str, int]:
     rebuild = frappe.utils.cint(rebuild)
     count = frappe.utils.cint(count)

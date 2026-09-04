@@ -235,6 +235,40 @@ function dashboardData(label = "浙江省") {
   };
 }
 
+function emptyDashboardData() {
+  return {
+    filters: {},
+    summary: {
+      opening_active: 0,
+      closing_active: 0,
+      active_vehicles: 0,
+      new_users: 0,
+      churned_users: 0,
+      net_growth: 0,
+      churn_rate: 0,
+      monthly_revenue: 0,
+    },
+    periods: [
+      {
+        label: "2026-09",
+        opening_active: 0,
+        new_users: 0,
+        churned_users: 0,
+        net_growth: 0,
+        closing_active: 0,
+      },
+    ],
+    distributions: {
+      regions: [],
+      customer_types: [],
+      plans: [],
+      churn_reasons: [],
+      stations: [],
+    },
+    generated_at: "2026-09-03T10:30:00",
+  };
+}
+
 function boot(callQueue = []) {
   const document = new FakeElement("document");
   document.hidden = false;
@@ -397,6 +431,12 @@ async function run() {
     1,
     "customer-type filtering remains visible on the dashboard",
   );
+  assert.ok(
+    first.fields.some(
+      ({ config }) => config.fieldname === "acquisition_channel",
+    ),
+    "dashboard exposes the acquisition-channel filter documented by the App",
+  );
   assert.equal(
     first.wrapper.querySelectorAll("[data-kpi]").length,
     6,
@@ -416,6 +456,21 @@ async function run() {
     first.charts.length,
     2,
     "uses the mixed trend and customer-type Frappe charts",
+  );
+
+  const empty = boot([
+    () => Promise.resolve({ message: emptyDashboardData() }),
+  ]);
+  await empty.dashboard.show();
+  assert.equal(
+    empty.charts.length,
+    0,
+    "zero-valued periods render the empty state",
+  );
+  assert.match(
+    empty.wrapper.textContent,
+    /当前筛选条件下暂无可展示的运营数据/,
+    "empty state is reachable when filters match no subscriptions",
   );
 
   const lifecycle = boot([

@@ -165,6 +165,12 @@
           options: "\n基础换电\n畅换\n企业车队",
         },
         {
+          fieldname: "acquisition_channel",
+          label: __("获客渠道"),
+          fieldtype: "Select",
+          options: "\n直营网点\n企业合作\n渠道代理\n线上推广",
+        },
+        {
           fieldname: "granularity",
           label: __("粒度"),
           fieldtype: "Select",
@@ -251,16 +257,23 @@
           throw new Error("dashboard response is missing periods");
         }
         this.latestData = data;
-        if (!data.periods.length) {
+        const summary = data.summary || {};
+        const hasOperationalData = [
+          "opening_active",
+          "closing_active",
+          "new_users",
+          "churned_users",
+        ].some((key) => number(summary[key]) !== 0);
+        if (!data.periods.length || !hasOperationalData) {
           this.renderEmpty();
           return;
         }
-        this.renderSummary(data.summary || {});
+        this.renderSummary(summary);
         this.renderCharts(data.periods, data.distributions || {});
         const updated = data.generated_at
           ? ` · ${text(data.generated_at)}`
           : "";
-        const revenue = data.summary && data.summary.monthly_revenue;
+        const revenue = summary.monthly_revenue;
         const revenueLabel =
           revenue === undefined
             ? ""

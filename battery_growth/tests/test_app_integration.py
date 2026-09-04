@@ -1,5 +1,6 @@
 """Installation and static contracts for Battery Growth Desk integration."""
 
+import ast
 import json
 import unittest
 from pathlib import Path
@@ -15,6 +16,7 @@ except ModuleNotFoundError as error:
 
 
 APP_ROOT = Path(__file__).resolve().parents[1]
+DEMO_PATH = APP_ROOT / "setup" / "demo.py"
 WORKSPACE_PATH = APP_ROOT / "battery_growth" / "workspace" / "battery_growth" / "battery_growth.json"
 ARTIFACT_PATHS = (
     APP_ROOT / "battery_growth" / "doctype" / "service_subscription" / "service_subscription.json",
@@ -42,6 +44,17 @@ class TestServiceSubscriptionStaticContract(unittest.TestCase):
         metadata = json.loads(ARTIFACT_PATHS[0].read_text(encoding="utf-8"))
         fields = {field["fieldname"]: field for field in metadata["fields"]}
         self.assertEqual(fields["churn_reason"]["options"].splitlines()[0], "")
+
+
+class TestDemoGeneratorSecurityContract(unittest.TestCase):
+    def test_destructive_demo_seed_is_not_exposed_as_an_http_method(self):
+        module = ast.parse(DEMO_PATH.read_text(encoding="utf-8"))
+        seed = next(
+            node
+            for node in module.body
+            if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef) and node.name == "seed_demo_data"
+        )
+        self.assertEqual(seed.decorator_list, [])
 
 
 class TestWorkspaceStaticContract(unittest.TestCase):

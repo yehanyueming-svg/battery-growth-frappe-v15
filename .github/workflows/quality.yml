@@ -21,6 +21,8 @@ jobs:
         run: ruff format --check battery_growth
       - name: Validate JSON metadata
         run: git ls-files -z '*.json' | xargs -0 -n1 python -m json.tool > /dev/null
+      - name: Run dependency-light Python regression suite
+        run: python -m unittest discover -s battery_growth/tests -t . -v
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
