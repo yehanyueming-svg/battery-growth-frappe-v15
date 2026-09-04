@@ -160,12 +160,13 @@ class TestGrowthMetrics(FrappeTestCase):
                 "new_users": 1,
                 "churned_users": 1,
                 "net_growth": 0,
-                "churn_rate": 50.0,
+                "churn_rate": 33.33,
                 "active_vehicles": 5,
                 "monthly_revenue": 2799.0,
             },
         )
         self.assertIsInstance(summary["active_vehicles"], int)
+        self.assertLessEqual(summary["churn_rate"], 100.0)
         self.assertEqual(result["periods"][0]["new_vehicles"], 4)
         self.assertIsInstance(result["periods"][0]["new_vehicles"], int)
 

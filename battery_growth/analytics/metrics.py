@@ -159,13 +159,16 @@ def get_growth_metrics(filters=None) -> dict:
     closing_rows = [row for row in rows if is_active_on(row, filters.to_date)]
     new_rows = [row for row in rows if filters.from_date <= getdate(row.activation_date) <= filters.to_date]
     churned_rows = [row for row in rows if churned_between(row, filters.from_date, filters.to_date)]
+    served_users = opening_active + len(new_rows)
     summary = {
         "opening_active": opening_active,
         "closing_active": len(closing_rows),
         "new_users": len(new_rows),
         "churned_users": len(churned_rows),
         "net_growth": len(new_rows) - len(churned_rows),
-        "churn_rate": _rate(len(churned_rows), opening_active),
+        # For a multi-period summary, include users activated during the range so
+        # the cumulative rate remains interpretable and cannot exceed 100%.
+        "churn_rate": _rate(len(churned_rows), served_users),
         "active_vehicles": _whole_number(sum(_number(row.vehicle_count) for row in closing_rows)),
         "monthly_revenue": _money(sum(_number(row.monthly_fee) for row in closing_rows)),
     }
