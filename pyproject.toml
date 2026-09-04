@@ -2,7 +2,7 @@
 name = "battery_growth"
 authors = [{name = "Battery Growth Contributors", email = "developers@example.invalid"}]
 description = "User growth analytics for battery-swap service operations"
-requires-python = ">=3.10"
+requires-python = ">=3.10,<3.15"
 readme = "README.md"
 license = {text = "MIT"}
 dynamic = ["version"]
