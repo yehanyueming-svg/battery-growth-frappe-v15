@@ -94,7 +94,7 @@ bench --site battery.localhost execute frappe.client.get_count --kwargs "{'docty
 | 新开通 / 流失 | `activation_date` / `churn_date` 位于本期的订阅数 |
 | 净增长 | 新开通 − 流失 |
 | 期末在服 | 期末已开通且未在该日或之前流失的订阅数 |
-| 流失率 | 流失 ÷ 期初在服 × 100%；期初为 0 时为 0 |
+| 流失率 | 周期行：流失 ÷ 期初在服；跨周期 Summary：累计流失 ÷（期初在服 + 期间新增）；分母为 0 时为 0 |
 | 新增车辆 / 新增月服务费 | 本期开通行的 `vehicle_count` / `monthly_fee` 合计 |
 
 支持日期、月/周、客户类型、省份、城市、套餐和获客渠道；最大跨度 36 个月。点击非零“新增用户”或“流失用户”可跳转到对应订阅列表。
@@ -153,13 +153,21 @@ node battery_growth/tests/test_dashboard_page_contract.js
 
 ## 截图
 
-当前工作树没有可运行 Frappe/Bench site，故未创建或引用占位 PNG。必须由真实 Frappe v15 浏览器会话（1920×1080）捕获后才加入：
+以下截图来自 Frappe `15.120.0`、1920×1080 的真实本地浏览器验收会话，数据均为固定种子生成的 Mock 数据。
 
-- `docs/screenshots/subscriptions.png`：带 Mock 行和筛选器的订阅列表。
-- `docs/screenshots/user-growth-report.png`：Summary、混合图和表格。
-- `docs/screenshots/operations-dashboard.png`：全屏深色大屏与 AI 来源标签。
+### 服务订阅列表
 
-截图必须有 Frappe chrome 或可识别路由状态，且不得有真实个人数据。
+![带 Mock 行和筛选器的服务订阅列表](docs/screenshots/subscriptions.png)
+
+### 用户增长分析
+
+![包含 Summary、混合图和周期明细的用户增长报表](docs/screenshots/user-growth-report.png)
+
+### 智格换电运营态势
+
+![包含筛选器、KPI、趋势与分布的深色运营大屏](docs/screenshots/operations-dashboard.png)
+
+三张截图均保留 Frappe chrome 或可识别路由状态，且不含真实个人数据。
 
 ## 故障排查
 
