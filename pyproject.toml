@@ -21,3 +21,6 @@ target-version = "py310"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
+# Ruff's formatter is the source of truth for wrapping; many structured test
+# fixtures and Chinese user-facing literals cannot be meaningfully split.
+ignore = ["E501"]

@@ -1,0 +1,40 @@
+name: Quality
+
+on:
+  pull_request:
+  push:
+
+jobs:
+  quality:
+    name: Lightweight quality checks (not Bench integration)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - name: Install pinned Ruff
+        run: python -m pip install ruff==0.6.9
+      - name: Lint Python
+        run: ruff check battery_growth
+      - name: Check Python formatting
+        run: ruff format --check battery_growth
+      - name: Validate JSON metadata
+        run: git ls-files -z '*.json' | xargs -0 -n1 python -m json.tool > /dev/null
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install JavaScript tooling
+        run: |
+          corepack enable
+          yarn install --frozen-lockfile
+      - name: Check JavaScript formatting and linting
+        run: |
+          yarn format:check
+          yarn lint
+      - name: Run dashboard page contract
+        run: node battery_growth/tests/test_dashboard_page_contract.js
+
+      # This workflow has no Bench site, MariaDB, or Frappe runner.
+      # The authoritative integration command is in README.md:
+      # bench --site battery.localhost run-tests --app battery_growth
