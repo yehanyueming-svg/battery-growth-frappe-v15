@@ -172,7 +172,6 @@ def seed_demo_data(rebuild: bool = False, count: int = 240) -> dict[str, int]:
 
     for record in _build_records(count):
         frappe.get_doc(record).insert(ignore_permissions=True)
-    frappe.db.commit()
     return {"created": count, "skipped": 0}
 
 

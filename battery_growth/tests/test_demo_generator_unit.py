@@ -131,7 +131,7 @@ class TestDemoGenerator(unittest.TestCase):
         result = demo.seed_demo_data(rebuild=True, count=240)
         self.assertEqual(result, {"created": 240, "skipped": 0})
         self.assertEqual(len(DB.rows), 240)
-        self.assertEqual(DB.commit_calls, 1)
+        self.assertEqual(DB.commit_calls, 0)
         self.assertTrue(all(row["is_mock"] == 1 for row in DB.rows))
         self.assertTrue(all(row["customer_type"] in {"个人", "企业"} for row in DB.rows))
         self.assertTrue(any(row["customer_type"] == "个人" for row in DB.rows))
@@ -168,12 +168,12 @@ class TestDemoGenerator(unittest.TestCase):
         self.assertEqual(first, {"created": 24, "skipped": 0})
         self.assertEqual(second, {"created": 0, "skipped": 24})
         self.assertEqual(DB.rows[0], non_mock)
-        self.assertEqual(DB.commit_calls, 1)
+        self.assertEqual(DB.commit_calls, 0)
         demo.seed_demo_data(rebuild=True, count=24)
         second_rows = [row.copy() for row in DB.rows if row["is_mock"] == 1]
         self.assertEqual(first_rows, second_rows)
         self.assertEqual(DB.rows[0], non_mock)
-        self.assertEqual(DB.commit_calls, 2)
+        self.assertEqual(DB.commit_calls, 0)
 
     def test_seed_rejects_counts_outside_the_supported_range(self):
         for count in (0, 1001):
@@ -186,7 +186,11 @@ class TestDemoGenerator(unittest.TestCase):
     def test_after_install_uses_the_default_seed_without_rebuilding(self):
         demo.after_install()
         self.assertEqual(len(DB.rows), 240)
-        self.assertEqual(DB.commit_calls, 1)
+        self.assertEqual(DB.commit_calls, 0)
+
+    def test_seed_defers_commit_to_the_frappe_transaction_boundary(self):
+        demo.seed_demo_data(rebuild=True, count=24)
+        self.assertEqual(DB.commit_calls, 0)
 
 
 @unittest.skipIf(HAS_REAL_FRAPPE, "requires the no-Frappe fallback environment")

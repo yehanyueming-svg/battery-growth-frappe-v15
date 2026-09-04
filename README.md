@@ -32,7 +32,7 @@ analytics.metrics.get_growth_metrics
 
 ## 前置条件
 
-- Frappe v15、可用 MariaDB/Redis Bench、Python 3.10+、Node.js 18+、Yarn 1.22+。
+- Frappe v15、可用 MariaDB/Redis Bench、Python `>=3.10,<3.15`、Node.js 18+、Yarn 1.22+。
 - 验证 site 为 `battery.localhost`；设置、报表和大屏默认需要 System Manager 或目标 DocType 的相应权限。
 
 ### Windows 与 WSL

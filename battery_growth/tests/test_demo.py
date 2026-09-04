@@ -16,8 +16,7 @@ else:
 @unittest.skipIf(frappe is None, "Requires a Frappe site database.")
 class TestDemoData(FrappeTestCase):
     def tearDown(self):
-        frappe.db.delete("Service Subscription", {"is_mock": 1})
-        frappe.db.commit()
+        frappe.db.rollback()
 
     def test_seed_is_idempotent(self):
         first = seed_demo_data(rebuild=True, count=24)
