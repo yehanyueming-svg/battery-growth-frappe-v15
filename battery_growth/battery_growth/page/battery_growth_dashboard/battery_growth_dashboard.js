@@ -98,7 +98,8 @@
         this.chartGrid,
         this.aiBrief,
       );
-      this.page.main.empty().append(this.root);
+      // Frappe v15 prepends its page-form here; preserve it so toolbar filters stay visible.
+      this.page.main.append(this.root);
       this.refreshButton = this.makeButton("bg-refresh", __("刷新数据"), () =>
         this.refresh(),
       );

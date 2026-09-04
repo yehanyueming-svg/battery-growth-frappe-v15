@@ -244,6 +244,10 @@ function boot(callQueue = []) {
   const timers = [];
   const charts = [];
   const fields = [];
+  const filterHost = new FakeElement("div");
+  filterHost.className = "page-form";
+  const pageMain = new FakeElement("main");
+  pageMain.append(filterHost);
   const jqueryWrappers = new Map();
   const jquery = (value) => {
     if (value instanceof FakeJQuery) return value;
@@ -254,6 +258,9 @@ function boot(callQueue = []) {
   };
   const page = {
     add_field(config) {
+      const fieldElement = new FakeElement("div");
+      fieldElement.setAttribute("data-fieldname", config.fieldname);
+      filterHost.append(fieldElement);
       const control = {
         get_value: () => control.value,
         set_value: (value) => {
@@ -264,7 +271,7 @@ function boot(callQueue = []) {
       fields.push({ config, control });
       return control;
     },
-    main: new FakeJQuery(new FakeElement("main")),
+    main: new FakeJQuery(pageMain),
     set_title() {},
   };
   const context = {
@@ -327,6 +334,7 @@ function boot(callQueue = []) {
     dashboard: wrapper.batteryGrowthDashboard,
     document,
     fields,
+    filterHost,
     jquery,
     page,
     timers,
@@ -378,6 +386,16 @@ async function run() {
     () => Promise.resolve({ message: dashboardData("<img src=x onerror=1>") }),
   ]);
   await first.dashboard.show();
+  assert.equal(
+    first.page.main[0].querySelectorAll(".page-form").length,
+    1,
+    "dashboard content preserves Frappe's visible filter host",
+  );
+  assert.equal(
+    first.page.main[0].querySelectorAll('[data-fieldname="customer_type"]').length,
+    1,
+    "customer-type filtering remains visible on the dashboard",
+  );
   assert.equal(
     first.wrapper.querySelectorAll("[data-kpi]").length,
     6,
