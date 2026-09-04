@@ -170,7 +170,7 @@
       "fieldname": "churn_reason",
       "fieldtype": "Select",
       "label": "流失原因",
-      "options": "价格\n服务覆盖\n迁移\n业务停止\n竞品\n其他"
+      "options": "\n价格\n服务覆盖\n迁移\n业务停止\n竞品\n其他"
     },
     {
       "fieldname": "churn_note",

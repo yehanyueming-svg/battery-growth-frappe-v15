@@ -37,6 +37,13 @@ class TestAppIntegration(FrappeTestCase):
         self.assertTrue(_frappe.db.exists("Workspace", "Battery Growth"))
 
 
+class TestServiceSubscriptionStaticContract(unittest.TestCase):
+    def test_optional_churn_reason_select_has_a_blank_default(self):
+        metadata = json.loads(ARTIFACT_PATHS[0].read_text(encoding="utf-8"))
+        fields = {field["fieldname"]: field for field in metadata["fields"]}
+        self.assertEqual(fields["churn_reason"]["options"].splitlines()[0], "")
+
+
 class TestWorkspaceStaticContract(unittest.TestCase):
     def test_workspace_metadata_and_navigation_contract(self):
         self.assertTrue(WORKSPACE_PATH.is_file(), "standard Workspace JSON is missing")
