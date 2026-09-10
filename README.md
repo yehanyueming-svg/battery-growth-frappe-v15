@@ -30,18 +30,49 @@ analytics.metrics.get_growth_metrics
 
 `analytics/filters.py` 统一校验日期和白名单筛选，`analytics/metrics.py` 是报表、大屏和洞察的唯一指标来源。API 先检查 `Service Subscription` Read 权限，再返回固定聚合 Schema；页面 JavaScript 只请求和呈现，不重算指标。
 
-## 前置条件
+## Docker 一键启动
+
+这是仓库的主运行路径，定位为可重复的本地演示与开发环境，不直接用于生产。它使用 Frappe `v15.120.0`、固定提交的官方 `frappe_docker`、MariaDB、Redis、前后端、WebSocket、worker 和 scheduler；不安装 ERPNext。
+
+前置条件：Git、Docker Engine 23+、Docker Compose v2、至少 10 GiB 可用磁盘，以及空闲的 `8080` 端口。Windows 使用 Docker Desktop（WSL2 后端），Linux 使用 Docker Engine。首次镜像构建需要访问 GitHub 与 Docker Hub。
+
+克隆仓库后，Windows PowerShell 执行：
+
+```powershell
+./scripts/up.ps1
+```
+
+Linux 或 WSL Bash 执行：
+
+```bash
+./scripts/up.sh
+```
+
+首次启动会复制 `.env.example` 为被 Git 忽略的 `.env`，构建只包含本 App 的 layered 镜像，创建 `battery.localhost`，安装/迁移 App、启用 developer mode，并幂等生成 240 条 Mock 订阅。完成后访问 [http://battery.localhost:8080](http://battery.localhost:8080)，使用本地演示账号 `Administrator` / `admin`。
+
+常用生命周期命令：
+
+```powershell
+./scripts/verify.ps1
+./scripts/logs.ps1
+./scripts/down.ps1
+./scripts/reset.ps1 -Force
+```
+
+```bash
+./scripts/verify.sh
+./scripts/logs.sh
+./scripts/down.sh
+./scripts/reset.sh --yes
+```
+
+`down` 保留数据库、站点文件和日志卷；`reset` 会删除固定 `battery-growth` 项目的三个卷，并且必须显式确认。普通重复启动不会删除用户数据，也不会追加 Mock 数据。详细说明见 [Docker 部署手册](docs/deployment/docker.md) 与 [故障诊断](docs/deployment/troubleshooting.md)。
+
+## 标准 Bench 前置条件
 
 - Frappe v15、可用 MariaDB/Redis Bench、Python `>=3.10,<3.15`、Node.js 18+、Yarn 1.22+。
 - 验证 site 为 `battery.localhost`；设置、报表和大屏默认需要 System Manager 或目标 DocType 的相应权限。
-
-### Windows 与 WSL
-
-Frappe v15 的 Bench、数据库迁移和资产构建应在 Linux 环境执行。Windows 推荐使用 WSL（Ubuntu）：进入 WSL 中的 Bench 后运行下列 `bench` 命令。PowerShell 找不到 `bench` 是环境缺失，不是 App 运行结论。
-
-### Docker 验证说明
-
-也可使用 [Frappe Docker](https://github.com/frappe/frappe_docker)：先按其文档启动带 MariaDB、Redis、worker 和 frontend 的开发 stack，再将本仓库作为可编辑 App 提供给容器内 Bench，并在该 Bench shell 中运行同一套 `install-app`、`migrate`、`build` 与 `run-tests` 命令。本 App 不要求额外镜像或 ERPNext。不要把数据库密码或 Provider API Key 写进仓库。
+- Frappe v15 的 Bench、数据库迁移和资产构建应在 Linux 环境执行。Windows 推荐在 WSL Ubuntu 中运行以下 `bench` 命令。
 
 ## 标准 Bench 安装
 

@@ -1,8 +1,9 @@
 {
   "private": true,
   "scripts": {
-    "format:check": "prettier --check \"battery_growth/**/*.{js,css,json}\"",
-    "lint": "eslint \"battery_growth/**/*.js\""
+    "format:check": "prettier --check \".github/**/*.{yml,yaml}\" \"battery_growth/**/*.{js,css,json}\" \"deploy/apps.json\" \"deploy/compose.override.yaml\" \"package.json\"",
+    "lint": "eslint \"battery_growth/**/*.js\"",
+    "test:dashboard": "node battery_growth/tests/test_dashboard_modules.js && node battery_growth/tests/test_dashboard_page_contract.js"
   },
   "devDependencies": {
     "eslint": "8.57.1",

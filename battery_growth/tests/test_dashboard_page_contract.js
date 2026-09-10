@@ -22,6 +22,10 @@ const stylePath = path.join(
   "battery_growth_dashboard",
   "battery_growth_dashboard.css",
 );
+const moduleRoot = path.join(__dirname, "..", "public", "js", "dashboard");
+const modulePaths = ["utils.js", "dom.js", "charts.js", "controller.js"].map(
+  (filename) => path.join(moduleRoot, filename),
+);
 
 function matches(element, selector) {
   if (selector.startsWith(".")) {
@@ -278,6 +282,7 @@ function boot(callQueue = []) {
   const timers = [];
   const charts = [];
   const fields = [];
+  const requiredAssets = [];
   const filterHost = new FakeElement("div");
   filterHost.className = "page-form";
   const pageMain = new FakeElement("main");
@@ -347,6 +352,24 @@ function boot(callQueue = []) {
         month_start: () => "2026-09-01",
       },
       pages: {},
+      require(asset) {
+        requiredAssets.push(asset);
+        modulePaths.forEach((modulePath) => {
+          vm.runInNewContext(fs.readFileSync(modulePath, "utf8"), context, {
+            filename: modulePath,
+          });
+        });
+        context.batteryGrowthDashboard = {
+          create: (wrapper) =>
+            new context.BatteryGrowthDashboardModules.Controller(wrapper),
+        };
+        return {
+          then(callback) {
+            callback();
+            return Promise.resolve();
+          },
+        };
+      },
       ui: {
         make_app_page: ({ parent }) => {
           parent.append(page.main[0]);
@@ -371,6 +394,7 @@ function boot(callQueue = []) {
     filterHost,
     jquery,
     page,
+    requiredAssets,
     timers,
     wrapper,
   };
@@ -420,6 +444,11 @@ async function run() {
     () => Promise.resolve({ message: dashboardData("<img src=x onerror=1>") }),
   ]);
   await first.dashboard.show();
+  assert.deepEqual(
+    first.requiredAssets,
+    ["battery_growth_dashboard.bundle.js"],
+    "page lifecycle lazily loads the dashboard bundle exactly once",
+  );
   assert.equal(
     first.page.main[0].querySelectorAll(".page-form").length,
     1,
@@ -646,6 +675,11 @@ async function run() {
     false,
     "same-filter refresh restores brief-button usability",
   );
+  assert.equal(
+    sameFilterRefresh.dashboard.briefButton.textContent,
+    "生成简报",
+    "data refresh resets the brief action to its cache-friendly first state",
+  );
   sameFilterBrief.resolve({
     message: { source: "rules", summary: "同筛选过期简报", insights: [] },
   });
@@ -664,6 +698,11 @@ async function run() {
         "battery_growth.api.dashboard.generate_operations_brief",
       );
       assert.equal(options.type, "POST");
+      assert.equal(
+        options.args.force,
+        0,
+        "first generation allows the server snapshot cache",
+      );
       return Promise.resolve({
         message: {
           generated_at: "2026-09-03T10:31:00",
@@ -680,7 +719,27 @@ async function run() {
         },
       });
     },
+    (options) => {
+      assert.equal(
+        options.args.force,
+        1,
+        "regeneration explicitly bypasses the server snapshot cache",
+      );
+      return Promise.resolve({
+        message: {
+          generated_at: "2026-09-03T10:32:00",
+          source: "rules",
+          summary: "强制刷新简报",
+          insights: [],
+        },
+      });
+    },
   ]);
+  assert.equal(
+    brief.dashboard.briefButton.textContent,
+    "生成简报",
+    "brief starts in the cache-friendly generation state",
+  );
   await brief.dashboard.show();
   await brief.dashboard.loadBrief();
   assert.match(
@@ -697,6 +756,17 @@ async function run() {
     brief.wrapper.querySelectorAll(".bg-insight-critical").length,
     0,
     "untrusted insight levels cannot inject a severity class",
+  );
+  assert.equal(
+    brief.dashboard.briefButton.textContent,
+    "重新生成",
+    "a rendered brief exposes the explicit regeneration action",
+  );
+  await brief.dashboard.loadBrief();
+  assert.match(
+    brief.wrapper.textContent,
+    /强制刷新简报/,
+    "explicit regeneration renders the new brief",
   );
 
   console.log("Dashboard browser contract: OK");

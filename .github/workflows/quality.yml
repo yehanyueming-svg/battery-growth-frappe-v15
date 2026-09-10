@@ -10,6 +10,32 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Validate Compose and lifecycle script syntax
+        run: |
+          docker compose \
+            --project-name battery-growth \
+            --env-file .env.example \
+            --file deploy/frappe_docker/compose.yaml \
+            --file deploy/frappe_docker/overrides/compose.mariadb.yaml \
+            --file deploy/compose.override.yaml \
+            config --quiet
+          bash -n scripts/common.sh scripts/up.sh scripts/down.sh scripts/logs.sh scripts/reset.sh scripts/verify.sh
+      - name: Validate PowerShell script syntax
+        shell: pwsh
+        run: |
+          $failed = $false
+          Get-ChildItem scripts -Filter '*.ps1' | ForEach-Object {
+            $tokens = $null
+            $errors = $null
+            [void][System.Management.Automation.Language.Parser]::ParseFile($_.FullName, [ref]$tokens, [ref]$errors)
+            if ($errors.Count -gt 0) {
+              $failed = $true
+              $errors | ForEach-Object { Write-Error $_.Message }
+            }
+          }
+          if ($failed) { exit 1 }
       - uses: actions/setup-python@v5
         with:
           python-version: "3.10"
@@ -21,8 +47,20 @@ jobs:
         run: ruff format --check battery_growth
       - name: Validate JSON metadata
         run: git ls-files -z '*.json' | xargs -0 -n1 python -m json.tool > /dev/null
+      - name: Scan tracked project files for credential patterns
+        shell: bash
+        run: |
+          if git grep -InE 'sk-[A-Za-z0-9_-]{20,}|gh[pousr]_[A-Za-z0-9]{20,}|-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----' -- .; then
+            echo 'Potential credential material found in tracked files.' >&2
+            exit 1
+          fi
       - name: Run dependency-light Python regression suite
         run: python -m unittest discover -s battery_growth/tests -t . -v
+      - name: Run deployment contracts explicitly
+        run: >-
+          python -m unittest
+          battery_growth.tests.test_deployment_contract
+          battery_growth.tests.test_deployment_verification_unit -v
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
@@ -34,8 +72,12 @@ jobs:
         run: |
           yarn format:check
           yarn lint
-      - name: Run dashboard page contract
-        run: node battery_growth/tests/test_dashboard_page_contract.js
+      - name: Run dashboard module and page contracts
+        run: |
+          node battery_growth/tests/test_dashboard_modules.js
+          node battery_growth/tests/test_dashboard_page_contract.js
+      - name: Check patch whitespace
+        run: git diff --check
 
       # This workflow has no Bench site, MariaDB, or Frappe runner.
       # The authoritative integration command is in README.md:

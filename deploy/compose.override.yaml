@@ -1,0 +1,181 @@
+services:
+  configurator:
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+      - logs:/home/frappe/frappe-bench/logs
+    depends_on:
+      db:
+        condition: service_healthy
+      redis-cache:
+        condition: service_healthy
+      redis-queue:
+        condition: service_healthy
+
+  site-init:
+    image: ${CUSTOM_IMAGE:-battery-growth}:${CUSTOM_TAG:-v15.120.0}
+    pull_policy: ${PULL_POLICY:-never}
+    restart: "no"
+    entrypoint:
+      - bash
+      - -c
+    command:
+      - |
+        set -euo pipefail
+        wait-for-it -t 180 db:3306
+        wait-for-it -t 180 redis-cache:6379
+        wait-for-it -t 180 redis-queue:6379
+        start=$$(date +%s)
+        until jq -e '.db_host and .redis_cache and .redis_queue' sites/common_site_config.json >/dev/null 2>&1; do
+          echo "Waiting for configurator output"
+          if [ $$(( $$(date +%s) - start )) -gt 180 ]; then
+            echo "sites/common_site_config.json was not ready after 180 seconds" >&2
+            exit 1
+          fi
+          sleep 3
+        done
+        if [ ! -d "sites/$${SITE_NAME}" ]; then
+          bench new-site "$${SITE_NAME}" \
+            --mariadb-user-host-login-scope='%' \
+            --admin-password="$${ADMIN_PASSWORD}" \
+            --db-root-username=root \
+            --db-root-password="$${DB_PASSWORD}" \
+            --set-default
+        fi
+        bench --site "$${SITE_NAME}" set-config developer_mode 1
+        if ! bench --site "$${SITE_NAME}" list-apps | grep -qx 'battery_growth'; then
+          bench --site "$${SITE_NAME}" install-app battery_growth
+        fi
+        bench --site "$${SITE_NAME}" migrate
+        bench build --apps battery_growth
+        bench --site "$${SITE_NAME}" clear-cache
+        bench --site "$${SITE_NAME}" execute battery_growth.setup.demo.seed_demo_data \
+          --kwargs "{'rebuild': 0, 'count': 240}"
+    environment:
+      SITE_NAME: ${SITE_NAME:-battery.localhost}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin}
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be set in .env}
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+      - logs:/home/frappe/frappe-bench/logs
+    depends_on:
+      configurator:
+        condition: service_completed_successfully
+      db:
+        condition: service_healthy
+      redis-cache:
+        condition: service_healthy
+      redis-queue:
+        condition: service_healthy
+
+  backend:
+    environment:
+      SITE_NAME: ${SITE_NAME:-battery.localhost}
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+      - logs:/home/frappe/frappe-bench/logs
+    depends_on:
+      site-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          python -c "import urllib.request;
+          r=urllib.request.Request('http://127.0.0.1:8000/api/method/ping',
+          headers={'Host':'$${SITE_NAME}'});
+          urllib.request.urlopen(r, timeout=5).read()"
+      start_period: 20s
+      interval: 10s
+      timeout: 8s
+      retries: 12
+
+  frontend:
+    environment:
+      SITE_NAME: ${SITE_NAME:-battery.localhost}
+      FRAPPE_SITE_NAME_HEADER: ${FRAPPE_SITE_NAME_HEADER:-battery.localhost}
+    ports:
+      - "${HTTP_PUBLISH_PORT:-8080}:8080"
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+      - logs:/home/frappe/frappe-bench/logs
+    depends_on:
+      backend:
+        condition: service_healthy
+      websocket:
+        condition: service_started
+      site-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          python -c "import urllib.request;
+          r=urllib.request.Request('http://127.0.0.1:8080/api/method/ping',
+          headers={'Host':'$${SITE_NAME}'});
+          urllib.request.urlopen(r, timeout=5).read()"
+      start_period: 10s
+      interval: 10s
+      timeout: 8s
+      retries: 12
+
+  websocket:
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+      - logs:/home/frappe/frappe-bench/logs
+    depends_on:
+      site-init:
+        condition: service_completed_successfully
+
+  queue-short:
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+      - logs:/home/frappe/frappe-bench/logs
+    depends_on:
+      site-init:
+        condition: service_completed_successfully
+
+  queue-long:
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+      - logs:/home/frappe/frappe-bench/logs
+    depends_on:
+      site-init:
+        condition: service_completed_successfully
+
+  scheduler:
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+      - logs:/home/frappe/frappe-bench/logs
+    depends_on:
+      site-init:
+        condition: service_completed_successfully
+
+  db:
+    volumes:
+      - db-data:/var/lib/mysql
+
+  redis-cache:
+    image: redis:8.6-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis-queue:
+    image: redis:8.6-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  sites:
+    name: battery-growth-sites
+  db-data:
+    name: battery-growth-db
+  logs:
+    name: battery-growth-logs

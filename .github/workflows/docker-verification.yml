@@ -1,0 +1,63 @@
+name: Full Docker verification
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  docker-verification:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      BATTERY_GROWTH_APP_REF: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Create local demo environment
+        run: cp .env.example .env
+
+      - name: Confirm empty named volumes
+        run: bash scripts/reset.sh --yes
+
+      - name: Build and start a fresh site
+        run: bash scripts/up.sh
+
+      - name: Verify fresh site and full Bench suite
+        run: bash scripts/verify.sh
+
+      - name: Repeat startup and verify idempotency
+        run: |
+          bash scripts/up.sh --skip-build
+          bash scripts/verify.sh --skip-bench-tests
+
+      - name: Stop without deleting persistent data
+        run: bash scripts/down.sh
+
+      - name: Restart and verify persistence
+        run: |
+          bash scripts/up.sh --skip-build
+          bash scripts/verify.sh --skip-bench-tests
+
+      - name: Collect redacted diagnostics on failure
+        if: failure()
+        run: bash scripts/logs.sh 300 > docker-diagnostics.log 2>&1 || true
+
+      - name: Upload redacted diagnostics on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: battery-growth-docker-diagnostics
+          path: docker-diagnostics.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Stop services
+        if: always()
+        run: bash scripts/down.sh || true
