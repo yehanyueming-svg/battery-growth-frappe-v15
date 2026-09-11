@@ -83,7 +83,8 @@ class TestDeploymentContract(unittest.TestCase):
             ],
         )
         self.assertIn("deploy/frappe_docker", read(".gitmodules").replace("\\", "/"))
-        self.assertEqual(gitlink_revision("deploy/frappe_docker"), FRAPPE_DOCKER_REVISION)
+        if (REPOSITORY_ROOT.joinpath(".git").exists()):
+            self.assertEqual(gitlink_revision("deploy/frappe_docker"), FRAPPE_DOCKER_REVISION)
 
     def test_compose_has_complete_private_topology(self):
         compose = read("deploy/compose.override.yaml")
@@ -159,7 +160,7 @@ class TestDeploymentContract(unittest.TestCase):
             self.assertIn("SOURCE_IMAGE", script)
 
         runtime_containerfile = read("deploy/runtime.Containerfile")
-        self.assertIn("ARG SOURCE_IMAGE", runtime_containerfile)
+        self.assertIn("ARG SOURCE_IMAGE=battery-growth:v15.120.0-build", runtime_containerfile)
         self.assertIn("FROM ${SOURCE_IMAGE}", runtime_containerfile)
         self.assertIn("entrypoint.sh", runtime_containerfile)
         self.assertIn("start.sh", runtime_containerfile)
@@ -200,6 +201,16 @@ class TestDeploymentContract(unittest.TestCase):
             self.assertIn("org.opencontainers.image.revision", script)
             self.assertIn("battery_growth.setup.verification.assert_deployment", script)
             self.assertIn("run-tests", script)
+            self.assertIn("set-config --parse allow_tests True", script)
+            self.assertIn("set-config --parse allow_tests False", script)
+            self.assertLess(
+                script.index("set-config --parse allow_tests True"),
+                script.index("run-tests"),
+            )
+            self.assertLess(
+                script.index("run-tests"),
+                script.index("set-config --parse allow_tests False"),
+            )
             self.assertIn("--app", script)
             self.assertIn("battery_growth", script)
             for route in (

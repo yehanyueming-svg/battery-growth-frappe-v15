@@ -30,7 +30,13 @@ battery_compose exec -T backend bench --site "$site_name" execute \
   --kwargs "{'expected_frappe_version': '$frappe_version', 'expected_mock_count': 240}"
 
 if [[ "$skip_bench_tests" == false ]]; then
-  battery_compose exec -T backend bench --site "$site_name" run-tests --app battery_growth
+  battery_compose exec -T backend bench --site "$site_name" set-config --parse allow_tests True
+  bench_test_status=0
+  battery_compose exec -T backend bench --site "$site_name" run-tests --app battery_growth || bench_test_status=$?
+  battery_compose exec -T backend bench --site "$site_name" set-config --parse allow_tests False
+  if (( bench_test_status != 0 )); then
+    exit "$bench_test_status"
+  fi
 else
   printf '%s\n' 'Skipping Bench tests by request.'
 fi

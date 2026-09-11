@@ -22,7 +22,12 @@ $frappeVersion = (Get-BatteryEnvValue -Name "FRAPPE_VERSION" -Default "v15.120.0
 Invoke-BatteryCompose exec -T backend bench --site $siteName execute battery_growth.setup.verification.assert_deployment --kwargs "{'expected_frappe_version': '$frappeVersion', 'expected_mock_count': 240}"
 
 if (-not $SkipBenchTests) {
-    Invoke-BatteryCompose exec -T backend bench --site $siteName run-tests --app battery_growth
+    Invoke-BatteryCompose exec -T backend bench --site $siteName set-config --parse allow_tests True
+    try {
+        Invoke-BatteryCompose exec -T backend bench --site $siteName run-tests --app battery_growth
+    } finally {
+        Invoke-BatteryCompose exec -T backend bench --site $siteName set-config --parse allow_tests False
+    }
 } else {
     Write-Host "Skipping Bench tests by request."
 }

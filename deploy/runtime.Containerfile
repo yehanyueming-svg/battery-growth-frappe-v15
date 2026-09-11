@@ -1,4 +1,4 @@
-ARG SOURCE_IMAGE
+ARG SOURCE_IMAGE=battery-growth:v15.120.0-build
 FROM ${SOURCE_IMAGE}
 
 USER root
