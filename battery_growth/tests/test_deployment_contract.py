@@ -83,7 +83,7 @@ class TestDeploymentContract(unittest.TestCase):
             ],
         )
         self.assertIn("deploy/frappe_docker", read(".gitmodules").replace("\\", "/"))
-        if (REPOSITORY_ROOT.joinpath(".git").exists()):
+        if REPOSITORY_ROOT.joinpath(".git").exists():
             self.assertEqual(gitlink_revision("deploy/frappe_docker"), FRAPPE_DOCKER_REVISION)
 
     def test_compose_has_complete_private_topology(self):
