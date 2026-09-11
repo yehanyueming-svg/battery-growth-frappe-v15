@@ -72,6 +72,7 @@ if (-not $SkipBuild) {
     }
     $frappeVersion = Get-BatteryEnvValue -Name "FRAPPE_VERSION" -Default "v15.120.0"
     $imageReference = Get-BatteryImageReference
+    $builderImageReference = "${imageReference}-build"
     $appsJsonPath = Join-Path $script:RepositoryRoot "deploy/apps.json"
     $temporaryAppsJson = $null
     if (-not [string]::IsNullOrWhiteSpace($appRef)) {
@@ -89,7 +90,7 @@ if (-not $SkipBuild) {
         "--secret", "id=apps_json,src=$appsJsonPath",
         "--label", "org.opencontainers.image.revision=$revision",
         "--label", "org.opencontainers.image.source=https://github.com/yehanyueming-svg/battery-growth-frappe-v15",
-        "--tag", $imageReference,
+        "--tag", $builderImageReference,
         "--file", (Join-Path $submodule "images/layered/Containerfile"),
         $submodule
     )
@@ -104,19 +105,32 @@ if (-not $SkipBuild) {
     if ($buildExitCode -ne 0) {
         throw "Layered image build failed. Re-run ./scripts/logs.ps1 after services have started."
     }
+    $runtimeBuildArguments = @(
+        "build",
+        "--build-arg", "SOURCE_IMAGE=$builderImageReference",
+        "--label", "org.opencontainers.image.revision=$revision",
+        "--label", "org.opencontainers.image.source=https://github.com/yehanyueming-svg/battery-growth-frappe-v15",
+        "--tag", $imageReference,
+        "--file", (Join-Path $script:RepositoryRoot "deploy/runtime.Containerfile"),
+        (Join-Path $script:RepositoryRoot "deploy")
+    )
+    & docker @runtimeBuildArguments
+    if ($LASTEXITCODE -ne 0) {
+        throw "Runtime image normalization failed."
+    }
 } else {
     Write-Host "Skipping image build by request."
 }
 
 Write-BatteryStage "dependencies"
-Invoke-BatteryCompose up -d db redis-cache redis-queue
-Invoke-BatteryCompose up --no-deps configurator
+Invoke-BatteryCompose up "-d" db redis-cache redis-queue
+Invoke-BatteryCompose up --no-deps --exit-code-from configurator configurator
 
 Write-BatteryStage "site-init"
-Invoke-BatteryCompose up --no-deps site-init
+Invoke-BatteryCompose up --no-deps --exit-code-from site-init site-init
 
 Write-BatteryStage "services"
-Invoke-BatteryCompose up -d --no-deps backend websocket queue-short queue-long scheduler frontend
+Invoke-BatteryCompose up "-d" --no-deps backend websocket queue-short queue-long scheduler frontend
 
 Write-BatteryStage "health"
 $healthUri = "http://127.0.0.1:$port/api/method/ping"

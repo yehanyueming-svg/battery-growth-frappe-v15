@@ -98,6 +98,10 @@ class TestDeploymentContract(unittest.TestCase):
         self.assertRegex(compose, r"(?ms)^  db-data:.*?name: battery-growth-db$")
         self.assertRegex(compose, r"(?ms)^  logs:.*?name: battery-growth-logs$")
 
+        configurator = service_block(compose, "configurator")
+        self.assertIn("REDIS_CACHE: ${REDIS_CACHE:-redis-cache:6379}", configurator)
+        self.assertIn("REDIS_QUEUE: ${REDIS_QUEUE:-redis-queue:6379}", configurator)
+
     def test_site_init_is_idempotent_and_preserves_user_data(self):
         site_init = service_block(read("deploy/compose.override.yaml"), "site-init")
         for expected in (
@@ -146,6 +150,20 @@ class TestDeploymentContract(unittest.TestCase):
             powershell.index("$serverVersionExitCode = $LASTEXITCODE"),
             powershell.index("Select-Object -First 1"),
         )
+        self.assertEqual(powershell.count('Invoke-BatteryCompose up "-d"'), 2)
+        self.assertNotIn("Invoke-BatteryCompose up -d", powershell)
+        for script in (powershell, bash):
+            self.assertIn("--exit-code-from configurator", script)
+            self.assertIn("--exit-code-from site-init", script)
+            self.assertIn("runtime.Containerfile", script)
+            self.assertIn("SOURCE_IMAGE", script)
+
+        runtime_containerfile = read("deploy/runtime.Containerfile")
+        self.assertIn("ARG SOURCE_IMAGE", runtime_containerfile)
+        self.assertIn("FROM ${SOURCE_IMAGE}", runtime_containerfile)
+        self.assertIn("entrypoint.sh", runtime_containerfile)
+        self.assertIn("start.sh", runtime_containerfile)
+        self.assertIn("sed -i", runtime_containerfile)
 
     def test_down_preserves_volumes_and_reset_requires_confirmation(self):
         for relative_path in ("scripts/down.ps1", "scripts/down.sh"):

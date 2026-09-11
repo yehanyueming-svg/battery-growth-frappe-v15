@@ -75,6 +75,7 @@ if [[ "$skip_build" == false ]]; then
   fi
   frappe_version="$(get_env_value FRAPPE_VERSION v15.120.0)"
   image_reference="$(get_image_reference)"
+  builder_image_reference="${image_reference}-build"
   apps_json="$REPOSITORY_ROOT/deploy/apps.json"
   temporary_apps_json=""
   if [[ -n "$app_ref" ]]; then
@@ -90,19 +91,26 @@ if [[ "$skip_build" == false ]]; then
     --secret "id=apps_json,src=$apps_json" \
     --label "org.opencontainers.image.revision=$revision" \
     --label 'org.opencontainers.image.source=https://github.com/yehanyueming-svg/battery-growth-frappe-v15' \
-    --tag "$image_reference" \
+    --tag "$builder_image_reference" \
     --file "$submodule/images/layered/Containerfile" \
     "$submodule"
+  docker build \
+    --build-arg "SOURCE_IMAGE=$builder_image_reference" \
+    --label "org.opencontainers.image.revision=$revision" \
+    --label 'org.opencontainers.image.source=https://github.com/yehanyueming-svg/battery-growth-frappe-v15' \
+    --tag "$image_reference" \
+    --file "$REPOSITORY_ROOT/deploy/runtime.Containerfile" \
+    "$REPOSITORY_ROOT/deploy"
 else
   printf '%s\n' 'Skipping image build by request.'
 fi
 
 write_stage dependencies
 battery_compose up -d db redis-cache redis-queue
-battery_compose up --no-deps configurator
+battery_compose up --no-deps --exit-code-from configurator configurator
 
 write_stage site-init
-battery_compose up --no-deps site-init
+battery_compose up --no-deps --exit-code-from site-init site-init
 
 write_stage services
 battery_compose up -d --no-deps backend websocket queue-short queue-long scheduler frontend
