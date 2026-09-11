@@ -140,6 +140,13 @@ class TestDeploymentContract(unittest.TestCase):
             self.assertIn("/api/method/ping", script)
             self.assertNotIn("API_KEY", script)
 
+        self.assertIn("$serverVersionOutput = & docker version", powershell)
+        self.assertIn("$serverVersionExitCode = $LASTEXITCODE", powershell)
+        self.assertLess(
+            powershell.index("$serverVersionExitCode = $LASTEXITCODE"),
+            powershell.index("Select-Object -First 1"),
+        )
+
     def test_down_preserves_volumes_and_reset_requires_confirmation(self):
         for relative_path in ("scripts/down.ps1", "scripts/down.sh"):
             down = read(relative_path)

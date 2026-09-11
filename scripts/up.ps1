@@ -7,8 +7,10 @@ param(
 Write-BatteryStage "prerequisites"
 Assert-BatteryCommand "git"
 Assert-BatteryCommand "docker"
-$serverVersionText = (& docker version --format "{{.Server.Version}}" 2>$null | Select-Object -First 1)
-if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($serverVersionText)) {
+$serverVersionOutput = & docker version --format "{{.Server.Version}}" 2>$null
+$serverVersionExitCode = $LASTEXITCODE
+$serverVersionText = $serverVersionOutput | Select-Object -First 1
+if ($serverVersionExitCode -ne 0 -or [string]::IsNullOrWhiteSpace($serverVersionText)) {
     throw "Docker Engine is not running. Start Docker Desktop or the Linux Docker service."
 }
 $serverVersion = [version](($serverVersionText -split "-")[0])
