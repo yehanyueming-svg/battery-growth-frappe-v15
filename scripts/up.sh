@@ -62,8 +62,13 @@ if [[ "$skip_build" == false ]]; then
   fi
   app_ref="${BATTERY_GROWTH_APP_REF:-}"
   if [[ -n "$app_ref" ]]; then
-    if [[ ! "$app_ref" =~ ^[A-Za-z0-9._/-]+$ || "$app_ref" != "$revision" ]]; then
-      printf '%s\n' 'BATTERY_GROWTH_APP_REF must be the current full commit revision for an exact CI build.' >&2
+    if [[ ! "$app_ref" =~ ^[A-Za-z0-9._/-]+$ ]]; then
+      printf '%s\n' 'BATTERY_GROWTH_APP_REF must be a safe branch or tag name.' >&2
+      exit 1
+    fi
+    resolved_app_ref="$(git -C "$REPOSITORY_ROOT" rev-parse "${app_ref}^{commit}" 2>/dev/null || true)"
+    if [[ "$resolved_app_ref" != "$revision" ]]; then
+      printf '%s\n' 'BATTERY_GROWTH_APP_REF must be a branch or tag that resolves to the current HEAD.' >&2
       exit 1
     fi
   else

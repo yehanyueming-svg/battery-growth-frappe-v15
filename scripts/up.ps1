@@ -61,8 +61,12 @@ if (-not $SkipBuild) {
     }
     $appRef = $env:BATTERY_GROWTH_APP_REF
     if (-not [string]::IsNullOrWhiteSpace($appRef)) {
-        if ($appRef -notmatch '^[A-Za-z0-9._/-]+$' -or $appRef -ne $revision) {
-            throw "BATTERY_GROWTH_APP_REF must be the current full commit revision for an exact CI build."
+        if ($appRef -notmatch '^[A-Za-z0-9._/-]+$') {
+            throw "BATTERY_GROWTH_APP_REF must be a safe branch or tag name."
+        }
+        $resolvedAppRef = & git -C $script:RepositoryRoot rev-parse "${appRef}^{commit}" 2>$null
+        if ($LASTEXITCODE -ne 0 -or $resolvedAppRef.Trim() -ne $revision) {
+            throw "BATTERY_GROWTH_APP_REF must be a branch or tag that resolves to the current HEAD."
         }
     } else {
         $upstreamRevision = & git -C $script:RepositoryRoot rev-parse '@{upstream}' 2>$null

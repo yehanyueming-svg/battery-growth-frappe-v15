@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     env:
-      BATTERY_GROWTH_APP_REF: ${{ github.sha }}
+      BATTERY_GROWTH_APP_REF: ${{ github.ref_name }}
     steps:
       - uses: actions/checkout@v4
         with:

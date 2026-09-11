@@ -140,6 +140,7 @@ class TestDeploymentContract(unittest.TestCase):
             self.assertIn("--secret", script)
             self.assertIn("id=apps_json", script)
             self.assertIn("BATTERY_GROWTH_APP_REF", script)
+            self.assertIn("^{commit}", script)
             self.assertIn("CACHE_BUST", script)
             self.assertIn("org.opencontainers.image.revision", script)
             self.assertIn("/api/method/ping", script)
@@ -244,6 +245,8 @@ class TestDeploymentContract(unittest.TestCase):
         self.assertIn("scripts/down.sh", workflow)
         self.assertIn("scripts/logs.sh", workflow)
         self.assertIn("docker-diagnostics.log", workflow)
+        self.assertIn("BATTERY_GROWTH_APP_REF: ${{ github.ref_name }}", workflow)
+        self.assertNotIn("BATTERY_GROWTH_APP_REF: ${{ github.sha }}", workflow)
         self.assertNotRegex(workflow, r"(?m)^\s+path:\s+.*\.env\s*$")
 
     def test_readme_leads_with_cross_platform_docker_quick_start(self):
